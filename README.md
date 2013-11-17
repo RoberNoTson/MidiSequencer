@@ -1,0 +1,4 @@
+MidiSequencer
+=============
+
+basic MIDI sequencer
