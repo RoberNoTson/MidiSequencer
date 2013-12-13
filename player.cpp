@@ -183,6 +183,7 @@ void MIDI_SEQ::play_midi(unsigned int startTick) {
             break;
         default:
             QMessageBox::critical(this, "MIDI Sequencer", QString("Invalid event type %1") .arg(ev.type));
+	    return;
         }   // end SWITCH ev.type
         // this blocks when the output pool has been filled
         err = snd_seq_event_output(seq, &ev);

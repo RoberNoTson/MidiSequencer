@@ -258,9 +258,9 @@
    <widget class="QWidget" name="layoutWidget_2">
     <property name="geometry">
      <rect>
-      <x>30</x>
+      <x>60</x>
       <y>10</y>
-      <width>340</width>
+      <width>301</width>
       <height>26</height>
      </rect>
     </property>
@@ -282,13 +282,16 @@
        <property name="text">
         <string notr="true">Port</string>
        </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
       </widget>
      </item>
      <item row="0" column="1">
       <widget class="QComboBox" name="PortBox">
        <property name="minimumSize">
         <size>
-         <width>301</width>
+         <width>260</width>
          <height>24</height>
         </size>
        </property>

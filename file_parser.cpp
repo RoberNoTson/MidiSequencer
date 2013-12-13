@@ -208,9 +208,9 @@ invalid_format:
         // do the actual reading of midi data from the file
         if (!read_track(file_offset + len, file_name))
             return 0;
-    }   // end FOR j
+    }   // end FOR all tracks
     // sort the event vector in tick order
-    std::sort(all_events.begin(), all_events.end(), tick_comp);
+    std::stable_sort(all_events.begin(), all_events.end(), tick_comp);
     if (song_length_seconds == 0) {
         song_length_seconds = (60000/(BPM*PPQ)) * all_events.back().tick / 1000 ;
         qDebug() << "Song length: " << song_length_seconds;
@@ -222,7 +222,10 @@ invalid_format:
     return 1;   // good return, all data read ok
 }   // end read_smf
 
-bool MIDI_SEQ::tick_comp(const struct event& e1, const struct event& e2) { return e1.tick<e2.tick; }
+bool MIDI_SEQ::tick_comp(const struct event& e1, const struct event& e2) { 
+  return (e1.tick<e2.tick);
+}
+
 int MIDI_SEQ::read_track(int track_end, char *file_name) {
 // read one complete track from the file, parse it into events
     int tick = 0;
@@ -255,7 +258,7 @@ int MIDI_SEQ::read_track(int track_end, char *file_name) {
                 goto _error;
         }
         unsigned int x = cmd >> 4;
-        static unsigned char cmd_type[0xf];
+        static unsigned char cmd_type[0xF];
         switch(x) {
         case 0x8:
             cmd_type[x] = SND_SEQ_EVENT_NOTEOFF;
