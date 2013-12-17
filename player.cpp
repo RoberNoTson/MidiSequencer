@@ -37,11 +37,13 @@ void MIDI_SEQ::play_midi(unsigned int startTick) {
              Event->type!=SND_SEQ_EVENT_PGMCHANGE ||
              Event->type!=SND_SEQ_EVENT_CHANPRESS ||
              Event->type!=SND_SEQ_EVENT_SYSEX ||
-             Event->type!=SND_SEQ_EVENT_KEYSIGN))
-            continue;
+             Event->type!=SND_SEQ_EVENT_KEYSIGN)) 
+	{
+          continue;
+	}
         ev.time.tick = Event->tick;
         ev.type = Event->type;
-        ev.dest = ports[Event->port];
+        ev.dest = ports[0];
         switch (ev.type) {
         case SND_SEQ_EVENT_NOTEON:
         case SND_SEQ_EVENT_NOTEOFF:

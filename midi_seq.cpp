@@ -9,12 +9,14 @@
  *  on_PortBox_currentIndexChanged   -- SLOT
  *  on_progressBar_sliderPressed   -- SLOT
  *  on_progressBar_sliderReleased   -- SLOT
+ *  on_progressBar_sliderMoved   -- SLOT
  *  on_MIDI_Volume_Master_valueChanged   -- SLOT
  *  on_MIDI_Exit_button_clicked()   -- SLOT
  *  on_MIDI_GMGS_button_toggled()   -- SLOT
  *  check_snd       -- INLINE
  *  read_id   -- INLINE
  *  send_CC
+ *  send_SysEx
  *  init_seq
  *  close_seq
  *  connect_port
@@ -23,6 +25,7 @@
  *  getRawDev
  *  getPorts
  *  startPlayer
+ *  stopPlayer
  */
 #include "midi_seq.h"
 #include "ui_midi_seq.h"
@@ -141,7 +144,6 @@ void MIDI_SEQ::on_Play_button_toggled(bool checked)
         // queue won't actually start until it is drained
         int err = snd_seq_start_queue(seq, queue, NULL);
         check_snd("start queue", err);
-	event_num=0;
 	ui->MIDI_Volume_1->blockSignals(true);
 	ui->MIDI_Volume_1->setValue(0);
 	ui->MIDI_Volume_1->blockSignals(false);
@@ -253,10 +255,10 @@ void MIDI_SEQ::on_Play_button_toggled(bool checked)
 	ui->MIDI_VolDisp_13->setValue(0);
 	ui->MIDI_VolDisp_14->setValue(0);
 	ui->MIDI_VolDisp_15->setValue(0);
-	ui->MIDI_VolDisp_16->setValue(0);	
-        startPlayer(0);
+	ui->MIDI_VolDisp_16->setValue(0);
         connect(timer, SIGNAL(timeout()), this, SLOT(tickDisplay()));
         timer->start(25);
+        startPlayer(0);
     }
     else {
         if (timer->isActive()) {
@@ -298,15 +300,17 @@ void MIDI_SEQ::on_Play_button_toggled(bool checked)
 	ui->MIDI_VolDisp_14->setValue(0);
 	ui->MIDI_VolDisp_15->setValue(0);
 	ui->MIDI_VolDisp_16->setValue(0);
+	event_num=0;
     }
 }   // end on_Play_button_toggled
 
 void MIDI_SEQ::on_Pause_button_toggled(bool checked)
 {
     unsigned int current_tick;
-    if (checked) {
+    if (checked) {	// pause playback
         stopPlayer();
         if (timer->isActive()) {
+            disconnect(timer, SIGNAL(timeout()), this, SLOT(tickDisplay()));
             timer->stop();
         }
         snd_seq_get_queue_status(seq, queue, status);
@@ -315,17 +319,16 @@ void MIDI_SEQ::on_Pause_button_toggled(bool checked)
         snd_seq_drain_output(seq);
         ui->Pause_button->setText("Resume");
         on_Panic_button_clicked();
-        qDebug() << "Paused queue" << queue << "at tick" << current_tick ;
     }
-    else {
+    else {	// resume playback
         snd_seq_continue_queue(seq, queue, NULL);
         snd_seq_drain_output(seq);
         snd_seq_get_queue_status(seq, queue, status);
         current_tick = snd_seq_queue_status_get_tick_time(status);
-        timer->start();
         ui->Pause_button->setText("Pause");
+        connect(timer, SIGNAL(timeout()), this, SLOT(tickDisplay()));
         startPlayer(current_tick);
-        qDebug() << "Playing resumed for queue" << queue << "at tick" << current_tick;
+        timer->start(25);
     }
 }   // end on_Pause_button_toggled
 
@@ -370,6 +373,22 @@ void MIDI_SEQ::on_Panic_button_clicked()
           snd_rawmidi_close(midiInHandle);
       } // end strlen(MIDI_dev)
   } // end else
+	ui->MIDI_VolDisp_1->setValue(0);
+	ui->MIDI_VolDisp_2->setValue(0);
+	ui->MIDI_VolDisp_3->setValue(0);
+	ui->MIDI_VolDisp_4->setValue(0);
+	ui->MIDI_VolDisp_5->setValue(0);
+	ui->MIDI_VolDisp_6->setValue(0);
+	ui->MIDI_VolDisp_7->setValue(0);
+	ui->MIDI_VolDisp_8->setValue(0);
+	ui->MIDI_VolDisp_9->setValue(0);
+	ui->MIDI_VolDisp_10->setValue(0);
+	ui->MIDI_VolDisp_11->setValue(0);
+	ui->MIDI_VolDisp_12->setValue(0);
+	ui->MIDI_VolDisp_13->setValue(0);
+	ui->MIDI_VolDisp_14->setValue(0);
+	ui->MIDI_VolDisp_15->setValue(0);
+	ui->MIDI_VolDisp_16->setValue(0);
 }   // end on_Panic_button_clicked
 
 void MIDI_SEQ::on_PortBox_currentIndexChanged(QString buf)
@@ -383,36 +402,30 @@ void MIDI_SEQ::on_PortBox_currentIndexChanged(QString buf)
 
 void MIDI_SEQ::on_progressBar_sliderPressed()
 {
-    if (!seq || !queue || ui->Pause_button->isChecked())
-        return;
-    // stop the timer and queue
-    if (timer->isActive()) timer->stop();
-    snd_seq_stop_queue(seq,queue,NULL);
-    snd_seq_drain_output(seq);
-    stopPlayer();
-    on_Panic_button_clicked();
+  if (!seq || !queue || ui->Pause_button->isChecked()) return;
 }   // end on_progressBar_sliderPressed
 
 void MIDI_SEQ::on_progressBar_sliderReleased()
 {
+    if (!ui->Pause_button->isChecked()) return;
     snd_seq_event_t ev;
     snd_seq_ev_clear(&ev);
     snd_seq_ev_set_direct(&ev);
     snd_seq_get_queue_status(seq, queue, status);
-    unsigned int current_tick = snd_seq_queue_status_get_tick_time(status);
-    const snd_seq_real_time_t *current_time = snd_seq_queue_status_get_real_time(status);
-    qDebug() << "Resetting queue from tick" << current_tick << "at" << current_time->tv_sec;
     // reset queue position
     snd_seq_ev_is_tick(&ev);
     snd_seq_ev_set_queue_pos_tick(&ev, queue, 0);
     snd_seq_event_output(seq, &ev);
     snd_seq_drain_output(seq);
     // scan the event queue for the closest tick >= 'x'
+    int y = 0;
     for (std::vector<event>::iterator Event=all_events.begin(); Event!=all_events.end(); ++Event)  {
         if (static_cast<int>(Event->tick) >= ui->progressBar->sliderPosition()) {
             ev.time.tick = Event->tick;
+	    event_num = y;
             break;
         }
+        y++;
     }
     ev.dest.client = SND_SEQ_CLIENT_SYSTEM;
     ev.dest.port = SND_SEQ_PORT_SYSTEM_TIMER;
@@ -424,15 +437,18 @@ void MIDI_SEQ::on_progressBar_sliderReleased()
     new_time->tv_sec = (x*song_length_seconds);
     new_time->tv_nsec = 0;
     snd_seq_ev_set_queue_pos_real(&ev, queue, new_time);
-    // continue the timer
+    ui->MIDI_time_display->setText(QString::number(static_cast<int>(new_time->tv_sec)/60).rightJustified(2,'0')+
+      ":"+QString::number(static_cast<int>(new_time->tv_sec)%60).rightJustified(2,'0'));
     if (ui->Pause_button->isChecked()) return;
-    snd_seq_continue_queue(seq, queue, NULL);
-    snd_seq_drain_output(seq);
-    current_time = snd_seq_queue_status_get_real_time(status);
-    qDebug() << "to tick" << ev.time.tick << "at" << new_time->tv_sec;
-    startPlayer(ev.time.tick);
-    timer->start();
+    on_Pause_button_toggled(false);
 }   // end on_progressBar_sliderReleased
+
+void MIDI_SEQ::on_progressBar_sliderMoved(int val) {
+    double new_seconds = static_cast<double>(val)/all_events.back().tick;
+    new_seconds *= song_length_seconds;  
+    ui->MIDI_time_display->setText(QString::number(static_cast<int>(new_seconds)/60).rightJustified(2,'0')+
+    ":"+QString::number(static_cast<int>(new_seconds)%60).rightJustified(2,'0'));
+}
 
 //  FUNCTIONS
 void MIDI_SEQ::send_CC(char * buf,int data_size) {
@@ -630,19 +646,23 @@ void MIDI_SEQ::tickDisplay() {
     // do timestamp display
     snd_seq_get_queue_status(seq, queue, status);    
     unsigned int current_tick = snd_seq_queue_status_get_tick_time(status);
+    // set slider
     ui->progressBar->blockSignals(true);
     ui->progressBar->setValue(current_tick);
     ui->progressBar->blockSignals(false);
+    // set time lable
     double new_seconds = static_cast<double>(current_tick)/all_events.back().tick;
     new_seconds *= song_length_seconds;
-    ui->MIDI_time_display->setText(QString::number(static_cast<int>(new_seconds)/60).rightJustified(2,'0')+":"+QString::number(static_cast<int>(new_seconds)%60).rightJustified(2,'0'));
+    ui->MIDI_time_display->setText(QString::number(static_cast<int>(new_seconds)/60).rightJustified(2,'0')+
+      ":"+QString::number(static_cast<int>(new_seconds)%60).rightJustified(2,'0'));
+    // end of song?
     if (current_tick >= all_events.back().tick) {
         sleep(1);
         ui->Play_button->setChecked(false);
+	return;
     }
-    while (event_num<all_events.size()) {
-       if (all_events[event_num].tick<=current_tick) {
-	// scan for Vol/Expr CC changes, display them
+    // set Volume, Expression markers and update Level meters
+    while (all_events[event_num].tick<current_tick) {
 	 if (all_events[event_num].type==SND_SEQ_EVENT_CONTROLLER) {
 	   if (all_events[event_num].data.d[1]==7) {		// Vol change
 	    switch(all_events[event_num].data.d[0] & 0x0F) {
@@ -762,7 +782,7 @@ void MIDI_SEQ::tickDisplay() {
 		break;
 	    } // end SWITCH
 	   } // end IF VOL
-	   if (all_events[event_num].data.d[1]==11) {	// Expr change
+	   else if (all_events[event_num].data.d[1]==11) {	// Expr change
 	    switch(all_events[event_num].data.d[0] & 0x0F) {
 	      case 0:
 		ui->MIDI_Expression_1->blockSignals(true);
@@ -965,7 +985,7 @@ void MIDI_SEQ::tickDisplay() {
 	      break;
 	  } // end switch NOTEON
 	} // end IF NOTEON
-	// scan for Note On, set volume disp
+	// scan for Note Off, reset volume disp
 	if (all_events[event_num].type==SND_SEQ_EVENT_NOTEOFF) {
 	  switch(all_events[event_num].data.d[0] & 0x0F) {
 	    case 0:
@@ -1018,8 +1038,6 @@ void MIDI_SEQ::tickDisplay() {
 	      break;
 	  } // end switch NOTEOFF
 	} // end IF NOTEOFF
-      }	// end IF <= current_tick
-      else break;
       event_num++;
     }	// end WHILE all_events
 }   // end tickDisplay

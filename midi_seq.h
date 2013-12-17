@@ -82,6 +82,7 @@ private:
 private slots:
     void on_progressBar_sliderReleased();
     void on_progressBar_sliderPressed();
+    void on_progressBar_sliderMoved(int);
     void on_PortBox_currentIndexChanged(QString );
     void on_Pause_button_toggled(bool);
     void on_Play_button_toggled(bool);
