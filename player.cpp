@@ -1,24 +1,24 @@
-// player.cpp   -- part of MIDI_SEQ
+// player.cpp   -- part of MIDI_PLAY
 // play memory image midi data to the alsa seq port
 // requires access to "seq","queue", "ports" static vars
 // contains:
 //      check_snd()
 //      play_midi()
 
-#include "midi_seq.h"
-#include "ui_midi_seq.h"
+#include "midi_play.h"
+#include "ui_midi_play.h"
 #include <alsa/asoundlib.h>
 #include <vector>
 #include <QTimer>
 
 // INLINE function
-void MIDI_SEQ::check_snd(const char *operation, int err) {
+void MIDI_PLAY::check_snd(const char *operation, int err) {
     // error handling for ALSA functions
     if (err < 0)
         QMessageBox::critical(this, "MIDI Sequencer", QString("Cannot %1\n%2") .arg(operation) .arg(snd_strerror(err)));
 }
 
-void MIDI_SEQ::play_midi(unsigned int startTick) {
+void MIDI_PLAY::play_midi(unsigned int startTick) {
     int end_delay = 2;
     int err;
     // set data in (snd_seq_event_t ev) and output the event

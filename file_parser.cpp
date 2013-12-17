@@ -1,4 +1,4 @@
-// file_parser.cpp -- part of MIDI_SEQ
+// file_parser.cpp -- part of MIDI_PLAY
 // validate the midi file is formatted correctly, then parse the track data
 // and load events into memory images.
 // Requires "seq", "queue", "song_length_seconds" vars
@@ -15,8 +15,8 @@
 //      read_int()   -- helper function
 //      read_var()   -- helper function
 
-#include "midi_seq.h"
-#include "ui_midi_seq.h"
+#include "midi_play.h"
+#include "ui_midi_play.h"
 #include <alsa/asoundlib.h>
 #include <algorithm>
 #include <QDebug>
@@ -24,30 +24,30 @@
 
 #define MAKE_ID(c1, c2, c3, c4) ((c1) | ((c2) << 8) | ((c3) << 16) | ((c4) << 24))
 
-bool MIDI_SEQ::minor_key=false;
-int MIDI_SEQ::sf=0;  // 0=Cmajor, <0 = #flats, >0 = #sharps
-double MIDI_SEQ::BPM=0,MIDI_SEQ::PPQ=0;
+bool MIDI_PLAY::minor_key=false;
+int MIDI_PLAY::sf=0;  // 0=Cmajor, <0 = #flats, >0 = #sharps
+double MIDI_PLAY::BPM=0,MIDI_PLAY::PPQ=0;
 int smpte_timing;
 int file_offset;
 int prev_tick;
 FILE *file;
 
 // helper functions, most are INLINE
-int MIDI_SEQ::read_id(void) {
+int MIDI_PLAY::read_id(void) {
     return read_32_le();
 }
-int MIDI_SEQ::read_byte(void) {
+int MIDI_PLAY::read_byte(void) {
     ++file_offset;
     return getc(file);
 }
-int MIDI_SEQ::read_32_le(void) {
+int MIDI_PLAY::read_32_le(void) {
     int value = read_byte();
     value |= read_byte() << 8;
     value |= read_byte() << 16;
     value |= read_byte() << 24;
     return !feof(file) ? value : -1;
 }
-int MIDI_SEQ::read_int(int bytes) {
+int MIDI_PLAY::read_int(int bytes) {
     int value = 0;
     do {
         int c = read_byte();
@@ -57,7 +57,7 @@ int MIDI_SEQ::read_int(int bytes) {
     } while (--bytes);
     return value;
 }
-int MIDI_SEQ::read_var(void) {
+int MIDI_PLAY::read_var(void) {
     int c = read_byte();
     int value = c & 0x7f;
     if (c & 0x80) {
@@ -76,14 +76,14 @@ int MIDI_SEQ::read_var(void) {
     }
     return !feof(file) ? value : -1;
 }   // end read_var
-void MIDI_SEQ::skip(int bytes) {
+void MIDI_PLAY::skip(int bytes) {
     while (bytes > 0)
         read_byte(), --bytes;
 }
 
 
 // start of data reading functions
-int MIDI_SEQ::read_riff(char *file_name) {
+int MIDI_PLAY::read_riff(char *file_name) {
     // skip file length
     read_byte();
     read_byte();
@@ -115,7 +115,7 @@ data_not_found:
     return read_smf(file_name);
 }   // end read_riff
 
-int MIDI_SEQ::read_smf(char *file_name) {
+int MIDI_PLAY::read_smf(char *file_name) {
     // read midi data into memory, parsing it into events
     // the starting position is immediately after the "MThd" id
    int  header_len = read_int(4);   // header length
@@ -222,11 +222,11 @@ invalid_format:
     return 1;   // good return, all data read ok
 }   // end read_smf
 
-bool MIDI_SEQ::tick_comp(const struct event& e1, const struct event& e2) { 
+bool MIDI_PLAY::tick_comp(const struct event& e1, const struct event& e2) { 
   return (e1.tick<e2.tick);
 }
 
-int MIDI_SEQ::read_track(int track_end, char *file_name) {
+int MIDI_PLAY::read_track(int track_end, char *file_name) {
 // read one complete track from the file, parse it into events
     int tick = 0;
     unsigned char last_cmd = 0;
@@ -501,7 +501,7 @@ _error:
     return 0;
 }   // end read_track
 
-int MIDI_SEQ::parseFile(char *file_name) {
+int MIDI_PLAY::parseFile(char *file_name) {
     // parse the midi file
     file = fopen(file_name, "rb");
     if (!file) {
