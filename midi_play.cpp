@@ -1089,6 +1089,7 @@ void MIDI_PLAY::on_MIDI_GMGS_button_toggled(bool checked) {
 
 void MIDI_PLAY::on_MIDI_Transpose_valueChanged(signed int val) {
   // change the Key Signature if one is displayed
+  if (ui->MIDI_KeySig->text().isEmpty()) return;
   ui->MIDI_KeySig->clear();
   signed int y = (7*val) + (sf>7?sf-256 :sf);
   while(y>7)
