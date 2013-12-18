@@ -46,16 +46,11 @@ void MIDI_PLAY::play_midi(unsigned int startTick) {
         ev.dest = ports[0];
         switch (ev.type) {
         case SND_SEQ_EVENT_NOTEON:
-            snd_seq_ev_set_fixed(&ev);
-            ev.data.note.channel = Event->data.d[0];
-            ev.data.note.note = Event->data.d[1]+(Event->data.d[0]==9?0: ui->MIDI_Transpose->value());
-            ev.data.note.velocity = Event->data.d[2];
-            break;
         case SND_SEQ_EVENT_NOTEOFF:
         case SND_SEQ_EVENT_KEYPRESS:
             snd_seq_ev_set_fixed(&ev);
             ev.data.note.channel = Event->data.d[0];
-            ev.data.note.note = Event->data.d[1];
+            ev.data.note.note = Event->data.d[1]+(Event->data.d[0]==9?0: ui->MIDI_Transpose->value());
             ev.data.note.velocity = Event->data.d[2];
             break;
         case SND_SEQ_EVENT_CONTROLLER:
