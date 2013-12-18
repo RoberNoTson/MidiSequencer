@@ -121,7 +121,6 @@ void MIDI_PLAY::on_Open_button_clicked()
         QMessageBox::critical(this, "MIDI Sequencer", QString("Invalid file"));
         return;
     }   // parseFile
-    qDebug() << "last tick: " << all_events.back().tick;
     ui->progressBar->setRange(0,all_events.back().tick);
     ui->progressBar->setTickInterval(song_length_seconds<240? all_events.back().tick/song_length_seconds*10 : all_events.back().tick/song_length_seconds*30);
     ui->progressBar->setTickPosition(QSlider::TicksAbove);
@@ -134,7 +133,6 @@ void MIDI_PLAY::on_Play_button_toggled(bool checked)
     if (checked) {
         ui->Pause_button->setEnabled(true);
         ui->Open_button->setEnabled(false);
-//	ui->MIDI_Transpose->setEnabled(false);
         ui->Play_button->setText("Stop");
         ui->progressBar->setEnabled(true);
         init_seq();
@@ -392,7 +390,6 @@ void MIDI_PLAY::on_Panic_button_clicked()
 
 void MIDI_PLAY::on_PortBox_currentIndexChanged(QString buf)
 {
-    qDebug() << "Index changed";
     init_seq();
     disconnect_port();
     getPorts(buf);
@@ -464,7 +461,6 @@ void MIDI_PLAY::send_CC(char * buf,int data_size) {
     snd_seq_ev_set_direct(&ev);
     snd_seq_event_output_direct(seq, &ev);
     snd_seq_drain_output(seq);
-//    if (ui->Play_button->isChecked()) on_Pause_button_toggled(false);
 }   // end send_CC
 
 void MIDI_PLAY::send_SysEx(char * buf,int data_size) {
@@ -488,7 +484,6 @@ void MIDI_PLAY::init_seq() {
         check_snd("set client name", err);
         int client = snd_seq_client_id(seq);    // client # is 128 by default
         check_snd("get client id", client);
-        qDebug() << "Seq and client initialized";
     }
 }
 
@@ -499,7 +494,6 @@ void MIDI_PLAY::close_seq() {
         snd_seq_drain_output(seq);
         snd_seq_close(seq);
         seq = 0;
-        qDebug() << "Seq closed";
     }
 }
 
@@ -528,7 +522,6 @@ void MIDI_PLAY::connect_port() {
         err = snd_seq_connect_to(seq, 0, ports[0].client, ports[0].port);
         if (err < 0 && err!= -16)
             QMessageBox::critical(this, "MIDI Sequencer", QString("%4 Cannot connect to port %1:%2 - %3") .arg(ports[0].client) .arg(ports[0].port) .arg(strerror(errno)) .arg(err));
-        qDebug() << "Connected port" << port_name;
     }
 }   // end connect_port
 
@@ -542,7 +535,6 @@ void MIDI_PLAY::disconnect_port() {
             return;
         }
         err = snd_seq_disconnect_to(seq, 0, ports[0].client, ports[0].port);
-        qDebug() << "Disconnected current port" << port_name;
     }   // end if seq
 }   // end disconnect_port
 
@@ -573,12 +565,10 @@ void MIDI_PLAY::getPorts(QString buf) {
                 ui->PortBox->blockSignals(true);
                 ui->PortBox->insertItem(9999, snd_seq_port_info_get_name(pinfo));
                 ui->PortBox->blockSignals(false);
-                qDebug() << "port:" << snd_seq_port_info_get_name(pinfo);
             }
             else if (buf.toAscii().data() == QString(snd_seq_port_info_get_name(pinfo))) {
                 QString holdit = QString::number(snd_seq_port_info_get_client(pinfo)) + ":" + QString::number(snd_seq_port_info_get_port(pinfo));
                 strcpy(port_name, holdit.toAscii().data());
-                qDebug() << "Selected port name " << port_name;
             }
         }
     }

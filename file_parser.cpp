@@ -136,7 +136,6 @@ invalid_format:
         return 0;
     }
     int time_division = read_int(2);    // time division
-    qDebug() << "time_division/ppq: " << time_division;
     if (time_division < 0)
         goto invalid_format;
     // interpret and set tempo
@@ -181,13 +180,10 @@ invalid_format:
         return 0;
     }
     PPQ = snd_seq_queue_tempo_get_ppq(queue_tempo);
-    qDebug() << "Initial Tempo: " << snd_seq_queue_tempo_get_tempo(queue_tempo);
-    if (PPQ != time_division) qDebug() << "New ppq: " << PPQ;
     BPM = static_cast<double>(1000000/static_cast<double>(snd_seq_queue_tempo_get_tempo(queue_tempo))*60);
     song_length_seconds = prev_tick = 0;
     // read len data from track unless EOF or new track found
     for (int j = 0; j < num_tracks; ++j) {
-        qDebug() << "Process track" << j+1 << "of" << num_tracks;
         int len;
         // verify data is valid
         for (;;) {
@@ -213,11 +209,9 @@ invalid_format:
     std::stable_sort(all_events.begin(), all_events.end(), tick_comp);
     if (song_length_seconds == 0) {
         song_length_seconds = (60000/(BPM*PPQ)) * all_events.back().tick / 1000 ;
-        qDebug() << "Song length: " << song_length_seconds;
     }
     else {
         song_length_seconds += (60000/(BPM*PPQ)) * (all_events.back().tick-prev_tick) / 1000 ;
-        qDebug() << "Song length: " << song_length_seconds;
     }
     return 1;   // good return, all data read ok
 }   // end read_smf
@@ -372,9 +366,6 @@ int MIDI_PLAY::read_track(int track_end, char *file_name) {
                         song_length_seconds += (60000/(BPM*PPQ)) * (tick-prev_tick) / 1000 ;
                         prev_tick = tick;
                         BPM = static_cast<double>(1000000/static_cast<double>(Event.data.tempo)*60);
-                        qDebug() << "New tempo: " << Event.data.tempo;
-                        qDebug() << " BPM: " << BPM << " at tick " << Event.tick;
-                        qDebug() << "New song_len: " << song_length_seconds;
                     }
                     break;
                 case 0x59:  // Key Signature
