@@ -436,7 +436,6 @@ void MIDI_PLAY::on_progressBar_sliderReleased()
     ui->MIDI_time_display->setText(QString::number(static_cast<int>(new_time->tv_sec)/60).rightJustified(2,'0')+
       ":"+QString::number(static_cast<int>(new_time->tv_sec)%60).rightJustified(2,'0'));
     if (ui->Pause_button->isChecked()) return;
-    on_Pause_button_toggled(false);
 }   // end on_progressBar_sliderReleased
 
 void MIDI_PLAY::on_progressBar_sliderMoved(int val) {
