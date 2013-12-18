@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string notr="true">MIDI Sequencer</string>
+   <string notr="true">Advanced MIDI Player</string>
   </property>
   <widget class="QWidget" name="centralWidget">
    <widget class="QPushButton" name="Play_button">
