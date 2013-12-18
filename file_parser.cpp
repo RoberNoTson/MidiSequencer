@@ -350,8 +350,6 @@ int MIDI_PLAY::read_track(int track_end, char *file_name) {
                 switch (c) {
                 case 0x21: // port number
                     if (len < 1) goto _error;
-//                    port = read_byte();
-//                    skip(len - 1);
                     skip(len);
                     break;
                 case 0x2f: // end of track
@@ -431,6 +429,9 @@ int MIDI_PLAY::read_track(int track_end, char *file_name) {
                 case 0xF9:
                     ui->MIDI_KeySig->setText("af minor");
                     break;
+		default:
+		  ui->MIDI_KeySig->clear();
+		  break;
                 }  // end switch
             }   // end ninor key
             else {
@@ -460,26 +461,29 @@ int MIDI_PLAY::read_track(int track_end, char *file_name) {
                     ui->MIDI_KeySig->setText("C# Major");
                     break;
                 case 0xFF:
-                    ui->MIDI_KeySig->setText("G# Major");
-                    break;
-                case 0xFE:
                     ui->MIDI_KeySig->setText("F Major");
                     break;
-                case 0xFD:
+                case 0xFE:
                     ui->MIDI_KeySig->setText("Bf Major");
                     break;
-                case 0xFC:
+                case 0xFD:
                     ui->MIDI_KeySig->setText("Ef Major");
                     break;
-                case 0xFB:
+                case 0xFC:
                     ui->MIDI_KeySig->setText("Af Major");
                     break;
-                case 0xFA:
+                case 0xFB:
                     ui->MIDI_KeySig->setText("Df Major");
                     break;
-                case 0xF9:
+                case 0xFA:
                     ui->MIDI_KeySig->setText("Gf Major");
                     break;
+                case 0xF9:
+                    ui->MIDI_KeySig->setText("Cf Major");
+                    break;
+		default:
+		  ui->MIDI_KeySig->clear();
+		  break;
                 } // end switch
             }   // end Major key
                     break;

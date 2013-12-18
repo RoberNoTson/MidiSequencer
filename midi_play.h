@@ -91,6 +91,7 @@ private slots:
     void on_MIDI_Volume_Master_valueChanged(int);
     void on_MIDI_Exit_button_clicked();
     void on_MIDI_GMGS_button_toggled(bool);
+    void on_MIDI_Transpose_valueChanged(int);
     void tickDisplay();
 };
 

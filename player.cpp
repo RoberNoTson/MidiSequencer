@@ -46,6 +46,11 @@ void MIDI_PLAY::play_midi(unsigned int startTick) {
         ev.dest = ports[0];
         switch (ev.type) {
         case SND_SEQ_EVENT_NOTEON:
+            snd_seq_ev_set_fixed(&ev);
+            ev.data.note.channel = Event->data.d[0];
+            ev.data.note.note = Event->data.d[1]+(Event->data.d[0]==9?0: ui->MIDI_Transpose->value());
+            ev.data.note.velocity = Event->data.d[2];
+            break;
         case SND_SEQ_EVENT_NOTEOFF:
         case SND_SEQ_EVENT_KEYPRESS:
             snd_seq_ev_set_fixed(&ev);
@@ -83,8 +88,9 @@ void MIDI_PLAY::play_midi(unsigned int startTick) {
             ev.data.queue.param.value = Event->data.tempo;
             break;
         case SND_SEQ_EVENT_KEYSIGN:
+	  if (ui->MIDI_KeySig->text().size() && Event->data.d[2]==minor_key && Event->data.d[1]==sf) break;
             ui->MIDI_KeySig->clear();
-            if (Event->data.d[2]) {
+            if (Event->data.d[2]) {	// minor key
                 switch(Event->data.d[1]) {
                 case 0:
                     ui->MIDI_KeySig->setText("a minor");
@@ -133,7 +139,7 @@ void MIDI_PLAY::play_midi(unsigned int startTick) {
                     break;
                 }
             }
-            else {
+            else {	// major key
                 switch(Event->data.d[1]) {
                 case 0:
                     ui->MIDI_KeySig->setText("C Major");
@@ -160,26 +166,29 @@ void MIDI_PLAY::play_midi(unsigned int startTick) {
                     ui->MIDI_KeySig->setText("C# Major");
                     break;
                 case 0xFF:
-                    ui->MIDI_KeySig->setText("G# Major");
-                    break;
-                case 0xFE:
                     ui->MIDI_KeySig->setText("F Major");
                     break;
-                case 0xFD:
+                case 0xFE:
                     ui->MIDI_KeySig->setText("Bf Major");
                     break;
-                case 0xFC:
+                case 0xFD:
                     ui->MIDI_KeySig->setText("Ef Major");
                     break;
-                case 0xFB:
+                case 0xFC:
                     ui->MIDI_KeySig->setText("Af Major");
                     break;
-                case 0xFA:
+                case 0xFB:
                     ui->MIDI_KeySig->setText("Df Major");
                     break;
-                case 0xF9:
+                case 0xFA:
                     ui->MIDI_KeySig->setText("Gf Major");
                     break;
+                case 0xF9:
+                    ui->MIDI_KeySig->setText("Cf Major");
+                    break;
+		default:
+		  ui->MIDI_KeySig->clear();
+		  break;
                 }
             }
             break;
