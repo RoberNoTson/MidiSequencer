@@ -10,6 +10,7 @@
  *  on_progressBar_sliderPressed   -- SLOT
  *  on_progressBar_sliderReleased   -- SLOT
  *  on_progressBar_sliderMoved   -- SLOT
+ *  on_MIDI_Tempo_Master_valueChanged   -- SLOT
  *  on_MIDI_Volume_Master_valueChanged   -- SLOT
  *  on_MIDI_Exit_button_clicked()   -- SLOT
  *  on_MIDI_GMGS_button_toggled()   -- SLOT
@@ -46,6 +47,7 @@
 // STATIC vars
 snd_seq_t *MIDI_PLAY::seq=0;
 snd_seq_addr_t *MIDI_PLAY::ports=0;
+snd_seq_queue_tempo_t *MIDI_PLAY::queue_tempo=0;
 double MIDI_PLAY::song_length_seconds=0;
 unsigned int MIDI_PLAY::event_num=0;
 
@@ -55,6 +57,7 @@ char playfile[PATH_MAX];
 pid_t pid=0;
 char port_name[16];
 char MIDI_dev[16];
+int old_tempo;
 
 // INLINE functions
 void MIDI_PLAY::check_snd(const char *operation, int err)
@@ -97,6 +100,7 @@ MIDI_PLAY::~MIDI_PLAY()
 //  SLOTS
 void MIDI_PLAY::on_Open_button_clicked()
 {
+    struct tempo_chg tc;
     ui->Play_button->setChecked(false);
     ui->Play_button->setEnabled(false);
     ui->Pause_button->setEnabled(false);
@@ -121,6 +125,19 @@ void MIDI_PLAY::on_Open_button_clicked()
         QMessageBox::critical(this, "MIDI Sequencer", QString("Invalid file"));
         return;
     }   // parseFile
+    for (std::vector<event>::iterator Event=all_events.begin(); Event!=all_events.end(); ++Event)  {
+      // create table of tempo changes
+      if (Event->type == SND_SEQ_EVENT_TEMPO) {
+	tc.tick = Event->tick;
+	tc.new_tempo = 60000000/Event->data.tempo;
+	tempoTable.push_back(tc);
+      }
+    }
+    old_tempo = tempoTable.begin()->new_tempo;
+    ui->MIDI_Tempo_Master->blockSignals(true);
+    ui->MIDI_Tempo_Master->setValue(old_tempo);
+    ui->MIDI_Tempo_Master->blockSignals(false);
+    ui->MIDI_Tempo_Master_display->display(old_tempo);
     ui->progressBar->setRange(0,all_events.back().tick);
     ui->progressBar->setTickInterval(song_length_seconds<240? all_events.back().tick/song_length_seconds*10 : all_events.back().tick/song_length_seconds*30);
     ui->progressBar->setTickPosition(QSlider::TicksAbove);
@@ -304,7 +321,8 @@ void MIDI_PLAY::on_Play_button_toggled(bool checked)
 void MIDI_PLAY::on_Pause_button_toggled(bool checked)
 {
     unsigned int current_tick;
-    if (checked) {	// pause playback
+    if (checked) {
+  // pause playback    
         stopPlayer();
         if (timer->isActive()) {
             disconnect(timer, SIGNAL(timeout()), this, SLOT(tickDisplay()));
@@ -317,8 +335,10 @@ void MIDI_PLAY::on_Pause_button_toggled(bool checked)
         ui->Pause_button->setText("Resume");
         on_Panic_button_clicked();
     }
-    else {	// resume playback
-        snd_seq_continue_queue(seq, queue, NULL);
+    else 
+    {
+  // resume playback
+	snd_seq_continue_queue(seq, queue, NULL);
         snd_seq_drain_output(seq);
         snd_seq_get_queue_status(seq, queue, status);
         current_tick = snd_seq_queue_status_get_tick_time(status);
@@ -648,6 +668,22 @@ void MIDI_PLAY::tickDisplay() {
         sleep(1);
         ui->Play_button->setChecked(false);
 	return;
+    }
+    // set Tempo display
+    static int nt;
+    for (std::vector<tempo_chg>::iterator tc=tempoTable.begin(); tc!=tempoTable.end(); ++tc)  {
+      if (tc->tick <= current_tick) {
+	nt=tc->new_tempo;
+	continue;
+      } else break;
+    }
+    if (nt != old_tempo) {
+      ui->MIDI_Tempo_Master->blockSignals(true);
+      ui->MIDI_Tempo_Master->setValue(nt);
+      ui->MIDI_Tempo_Master->blockSignals(false);
+      ui->MIDI_Tempo_Master_display->display(nt);
+      old_tempo = nt;
+printf("old_tempo %d\n",old_tempo);      
     }
     // set Volume, Expression markers 
     while (all_events[event_num].tick<current_tick) {
@@ -1036,6 +1072,7 @@ void MIDI_PLAY::stopPlayer() {
     snd_seq_drain_output(seq);
 }
 
+//void MIDI_PLAY::on_MIDI_Volume_Master_sliderMoved(int val) {
 void MIDI_PLAY::on_MIDI_Volume_Master_valueChanged(int val) {
     char buf[8];
     if (seq && !ui->MIDI_GMGS_button->isChecked()) {
@@ -1049,6 +1086,28 @@ void MIDI_PLAY::on_MIDI_Volume_Master_valueChanged(int val) {
       buf[6] = val;
       buf[7] = 0xF7;
       send_SysEx(buf, 8);
+  }
+}
+
+//void MIDI_PLAY::on_MIDI_Tempo_Master_sliderMoved(int val) {
+void MIDI_PLAY::on_MIDI_Tempo_Master_valueChanged(int val) {
+    int tempo;
+//    bool paused = false;
+    bool paused = ui->Pause_button->isChecked();
+  if (seq && !ui->MIDI_GMGS_button->isChecked()) {
+    tempo = 60000000/val;
+printf("Tempo %d\n",val);    
+    snd_seq_event_t ev;
+    snd_seq_ev_clear(&ev);
+    ev.data.queue.queue = queue;
+    ev.data.queue.param.value = tempo;
+    ev.type = SND_SEQ_EVENT_TEMPO;
+    snd_seq_ev_set_fixed(&ev);
+    snd_seq_ev_set_direct(&ev);
+//    if (ui->Pause_button->isChecked()) paused = true;
+    if (!paused) on_Pause_button_toggled(true);
+    snd_seq_event_output_direct(seq, &ev);
+    if (!paused) on_Pause_button_toggled(false);
   }
 }
 
@@ -1067,7 +1126,8 @@ void MIDI_PLAY::on_MIDI_GMGS_button_toggled(bool checked) {
 
 void MIDI_PLAY::on_MIDI_Transpose_valueChanged(signed int val) {
   // if timer is running, pause playback, change the key, and resume
-  on_Pause_button_toggled(true);
+  bool paused=ui->Pause_button->isChecked();
+  if (!paused) on_Pause_button_toggled(true);
   // change the Key Signature if one is displayed
   if (ui->MIDI_KeySig->text().size()) {
   ui->MIDI_KeySig->clear();
@@ -1182,5 +1242,5 @@ void MIDI_PLAY::on_MIDI_Transpose_valueChanged(signed int val) {
     } // end switch
   }   // end Major key
   }
-  on_Pause_button_toggled(false);
+  if (!paused) on_Pause_button_toggled(false);
 }

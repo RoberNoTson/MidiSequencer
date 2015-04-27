@@ -44,8 +44,14 @@ private:
         struct event *current_event;	// used while loading and playing
     };  // end struct track definition
 
+    struct tempo_chg {
+      unsigned int tick;
+      int new_tempo;
+    };
+
     static snd_seq_t *seq;
     static snd_seq_addr_t *ports;
+    static snd_seq_queue_tempo_t *queue_tempo;
     static double song_length_seconds;
     static bool minor_key;
     static int sf;  // sharps/flats
@@ -54,6 +60,7 @@ private:
 
     int queue;
     std::vector<struct event> all_events;
+    std::vector<struct tempo_chg> tempoTable;
     QTimer *timer;
     inline void check_snd(const char *, int);
     inline int read_id(void);
@@ -88,7 +95,10 @@ private slots:
     void on_Play_button_toggled(bool);
     void on_Panic_button_clicked();
     void on_Open_button_clicked();
+    void on_MIDI_Tempo_Master_valueChanged(int);
     void on_MIDI_Volume_Master_valueChanged(int);
+//    void on_MIDI_Tempo_Master_sliderMoved(int);
+//    void on_MIDI_Volume_Master_sliderMoved(int);
     void on_MIDI_Exit_button_clicked();
     void on_MIDI_GMGS_button_toggled(bool);
     void on_MIDI_Transpose_valueChanged(int);

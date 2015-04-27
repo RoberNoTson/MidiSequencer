@@ -24,6 +24,7 @@
 
 #define MAKE_ID(c1, c2, c3, c4) ((c1) | ((c2) << 8) | ((c3) << 16) | ((c4) << 24))
 
+// GLOBAL variables
 bool MIDI_PLAY::minor_key=false;
 int MIDI_PLAY::sf=0;  // 0=Cmajor, <0 = #flats, >0 = #sharps
 double MIDI_PLAY::BPM=0,MIDI_PLAY::PPQ=0;
@@ -31,6 +32,7 @@ int smpte_timing;
 int file_offset;
 int prev_tick;
 FILE *file;
+snd_seq_queue_tempo_t *queue_tempo;
 
 // helper functions, most are INLINE
 int MIDI_PLAY::read_id(void) {
@@ -139,14 +141,15 @@ invalid_format:
     if (time_division < 0)
         goto invalid_format;
     // interpret and set tempo
-    snd_seq_queue_tempo_t *queue_tempo;
+//    snd_seq_queue_tempo_t *queue_tempo;
     snd_seq_queue_tempo_alloca(&queue_tempo);
     smpte_timing = !!(time_division & 0x8000);
     if (!smpte_timing) {
-        // time_division is ticks per quarter
-        snd_seq_queue_tempo_set_tempo(queue_tempo, 500000); // default: 120 bpm
-        snd_seq_queue_tempo_set_ppq(queue_tempo, time_division);
+        // MIDI time_division is ticks per quarter
+        snd_seq_queue_tempo_set_tempo(queue_tempo, 500000); // set tempo to default of 120 bpm in case there are no tempo changes in the midi file
+        snd_seq_queue_tempo_set_ppq(queue_tempo, time_division); // set the PPQ from the midi file header
     } else {
+	// SMPTE time parsing
         // upper byte is negative frames per second
         int i = 0x80 - ((time_division >> 8) & 0x7f);
         // lower byte is ticks per frame
@@ -174,13 +177,15 @@ invalid_format:
             return 0;
         }
     }
+    PPQ = snd_seq_queue_tempo_get_ppq(queue_tempo);
     int err = snd_seq_set_queue_tempo(seq, queue, queue_tempo);
     if (err < 0) {
-        QMessageBox::critical(this, "MIDI Sequencer", QString("Cannot set queue tempo (%1/%2") .arg(snd_seq_queue_tempo_get_tempo(queue_tempo)) .arg(snd_seq_queue_tempo_get_ppq(queue_tempo)));
+        QMessageBox::critical(this, "MIDI Sequencer", QString("Cannot set queue tempo (%1/%2") .arg(snd_seq_queue_tempo_get_tempo(queue_tempo)) .arg(PPQ));
         return 0;
     }
-    PPQ = snd_seq_queue_tempo_get_ppq(queue_tempo);
-    BPM = static_cast<double>(1000000/static_cast<double>(snd_seq_queue_tempo_get_tempo(queue_tempo))*60);
+//    BPM = static_cast<double>(1000000/static_cast<double>(snd_seq_queue_tempo_get_tempo(queue_tempo))*60);
+    BPM = static_cast<double>(60000000/static_cast<double>(snd_seq_queue_tempo_get_tempo(queue_tempo)));
+//	printf("PPQ %.2f\tBPM %.2f\tTempo %d\n",PPQ,BPM,(int)snd_seq_queue_tempo_get_tempo(queue_tempo));
     song_length_seconds = prev_tick = 0;
     // read len data from track unless EOF or new track found
     for (int j = 0; j < num_tracks; ++j) {

@@ -2423,11 +2423,14 @@
    <widget class="QSlider" name="MIDI_Volume_Master">
     <property name="geometry">
      <rect>
-      <x>400</x>
+      <x>380</x>
       <y>170</y>
       <width>21</width>
       <height>131</height>
      </rect>
+    </property>
+    <property name="contextMenuPolicy">
+     <enum>Qt::DefaultContextMenu</enum>
     </property>
     <property name="maximum">
      <number>127</number>
@@ -2451,9 +2454,9 @@
    <widget class="QLabel" name="label_53">
     <property name="geometry">
      <rect>
-      <x>390</x>
+      <x>365</x>
       <y>140</y>
-      <width>52</width>
+      <width>46</width>
       <height>31</height>
      </rect>
     </property>
@@ -2493,11 +2496,141 @@
      <bool>true</bool>
     </property>
    </widget>
+   <widget class="QSlider" name="MIDI_Tempo_Master">
+    <property name="geometry">
+     <rect>
+      <x>380</x>
+      <y>330</y>
+      <width>21</width>
+      <height>146</height>
+     </rect>
+    </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::StrongFocus</enum>
+    </property>
+    <property name="maximum">
+     <number>500</number>
+    </property>
+    <property name="pageStep">
+     <number>16</number>
+    </property>
+    <property name="value">
+     <number>120</number>
+    </property>
+    <property name="tracking">
+     <bool>true</bool>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Vertical</enum>
+    </property>
+    <property name="tickPosition">
+     <enum>QSlider::TicksBothSides</enum>
+    </property>
+    <property name="tickInterval">
+     <number>16</number>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_54">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>300</y>
+      <width>41</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string notr="true">Tempo</string>
+    </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QLCDNumber" name="MIDI_Volume_Master_display">
+    <property name="geometry">
+     <rect>
+      <x>410</x>
+      <y>145</y>
+      <width>51</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="smallDecimalPoint">
+     <bool>true</bool>
+    </property>
+    <property name="numDigits">
+     <number>3</number>
+    </property>
+    <property name="segmentStyle">
+     <enum>QLCDNumber::Flat</enum>
+    </property>
+    <property name="intValue" stdset="0">
+     <number>127</number>
+    </property>
+   </widget>
+   <widget class="QLCDNumber" name="MIDI_Tempo_Master_display">
+    <property name="geometry">
+     <rect>
+      <x>410</x>
+      <y>310</y>
+      <width>51</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="smallDecimalPoint">
+     <bool>true</bool>
+    </property>
+    <property name="numDigits">
+     <number>3</number>
+    </property>
+    <property name="segmentStyle">
+     <enum>QLCDNumber::Flat</enum>
+    </property>
+    <property name="intValue" stdset="0">
+     <number>120</number>
+    </property>
+   </widget>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>MIDI_Volume_Master</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>MIDI_Volume_Master_display</receiver>
+   <slot>display(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>389</x>
+     <y>211</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>432</x>
+     <y>164</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>MIDI_Tempo_Master</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>MIDI_Tempo_Master_display</receiver>
+   <slot>display(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>393</x>
+     <y>389</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>438</x>
+     <y>326</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
  <designerdata>
   <property name="gridDeltaX">
    <number>5</number>

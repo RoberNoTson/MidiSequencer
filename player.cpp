@@ -38,9 +38,7 @@ void MIDI_PLAY::play_midi(unsigned int startTick) {
              Event->type!=SND_SEQ_EVENT_CHANPRESS ||
              Event->type!=SND_SEQ_EVENT_SYSEX ||
              Event->type!=SND_SEQ_EVENT_KEYSIGN)) 
-	{
-          continue;
-	}
+	    { continue; }
         ev.time.tick = Event->tick;
         ev.type = Event->type;
         ev.dest = ports[0];
@@ -194,6 +192,7 @@ void MIDI_PLAY::play_midi(unsigned int startTick) {
         // this blocks when the output pool has been filled
         err = snd_seq_event_output(seq, &ev);
         check_snd("output event", err);
+//	if (ev.type == SND_SEQ_EVENT_TEMPO) ui->MIDI_Tempo_Master->setValue((int)snd_seq_queue_tempo_get_tempo(queue_tempo)*2);
     }	// end for (read loop)
 
     // schedule queue stop at end of song
