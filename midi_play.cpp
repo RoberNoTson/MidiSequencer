@@ -15,38 +15,40 @@
  *  on_MIDI_Exit_button_clicked()   -- SLOT
  *  on_MIDI_GMGS_button_toggled()   -- SLOT
  *  on_MIDI_Transpose_valueChanged(int)   -- SLOT
- *  on_MIDI_Volume_1_valueChanged(int);
- *  on_MIDI_Volume_2_valueChanged(int);
- *  on_MIDI_Volume_3_valueChanged(int);
- *  on_MIDI_Volume_4_valueChanged(int);
- *  on_MIDI_Volume_5_valueChanged(int);
- *  on_MIDI_Volume_6_valueChanged(int);
- *  on_MIDI_Volume_7_valueChanged(int);
- *  on_MIDI_Volume_8_valueChanged(int);
- *  on_MIDI_Volume_9_valueChanged(int);
- *  on_MIDI_Volume_10_valueChanged(int);
- *  on_MIDI_Volume_11_valueChanged(int);
- *  on_MIDI_Volume_12_valueChanged(int);
- *  on_MIDI_Volume_13_valueChanged(int);
- *  on_MIDI_Volume_14_valueChanged(int);
- *  on_MIDI_Volume_15_valueChanged(int);
- *  on_MIDI_Volume_16_valueChanged(int);
- *  on_MIDI_Expression_1_valueChanged(int);
- *  on_MIDI_Expression_2_valueChanged(int);
- *  on_MIDI_Expression_3_valueChanged(int);
- *  on_MIDI_Expression_4_valueChanged(int);
- *  on_MIDI_Expression_5_valueChanged(int);
- *  on_MIDI_Expression_6_valueChanged(int);
- *  on_MIDI_Expression_7_valueChanged(int);
- *  on_MIDI_Expression_8_valueChanged(int);
- *  on_MIDI_Expression_9_valueChanged(int);
- *  on_MIDI_Expression_10_valueChanged(int);
- *  on_MIDI_Expression_11_valueChanged(int);
- *  on_MIDI_Expression_12_valueChanged(int);
- *  on_MIDI_Expression_13_valueChanged(int);
- *  on_MIDI_Expression_14_valueChanged(int);
- *  on_MIDI_Expression_15_valueChanged(int);
- *  on_MIDI_Expression_16_valueChanged(int);
+ * Volume controlled by CC "Bx 07 nn"
+ *  on_MIDI_Volume_1_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_2_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_3_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_4_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_5_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_6_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_7_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_8_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_9_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_10_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_11_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_12_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_13_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_14_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_15_valueChanged(int)   -- SLOT
+ *  on_MIDI_Volume_16_valueChanged(int)   -- SLOT
+ * Expression controlled by CC "Bx 0B nn"
+ *  on_MIDI_Expression_1_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_2_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_3_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_4_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_5_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_6_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_7_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_8_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_9_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_10_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_11_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_12_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_13_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_14_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_15_valueChanged(int)   -- SLOT
+ *  on_MIDI_Expression_16_valueChanged(int)   -- SLOT
  *  check_snd       -- INLINE
  *  read_id   -- INLINE
  *  send_CC
@@ -724,236 +726,236 @@ void MIDI_PLAY::tickDisplay() {
     // set Volume, Expression markers 
     while (all_events[event_num].tick<current_tick) {
       if (all_events[event_num].type==SND_SEQ_EVENT_CONTROLLER) {
-	if (all_events[event_num].data.d[1]==7) {		// Velocity change
+	if (all_events[event_num].data.d[1]==7) {		// Volume changed using CC "Bx 07 nn"
 	  switch(all_events[event_num].data.d[0] & 0x0F) {
 	    case 0:
 		ui->MIDI_Volume_1->blockSignals(true);
 		ui->MIDI_Volume_1->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_1->blockSignals(false);
-	        if (ui->MIDI_VolDisp_1->value()) ui->MIDI_VolDisp_1->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_1->value()) ui->MIDI_VolDisp_1->setValue((ui->MIDI_VolDisp_1->value() + 
 		  ui->MIDI_Expression_1->value() + ui->MIDI_Volume_1->value()) / (ui->MIDI_Expression_1->value()?3:2));
 		break;
 	    case 1:
 		ui->MIDI_Volume_2->blockSignals(true);
 		ui->MIDI_Volume_2->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_2->blockSignals(false);
-	        if (ui->MIDI_VolDisp_2->value()) ui->MIDI_VolDisp_2->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_2->value()) ui->MIDI_VolDisp_2->setValue((ui->MIDI_VolDisp_2->value() + 
 		  ui->MIDI_Expression_2->value() + ui->MIDI_Volume_2->value()) / (ui->MIDI_Expression_2->value()?3:2));
 		break;
 	    case 2:
 		ui->MIDI_Volume_3->blockSignals(true);
 		ui->MIDI_Volume_3->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_3->blockSignals(false);
-	        if (ui->MIDI_VolDisp_3->value()) ui->MIDI_VolDisp_3->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_3->value()) ui->MIDI_VolDisp_3->setValue((ui->MIDI_VolDisp_3->value() + 
 		  ui->MIDI_Expression_3->value() + ui->MIDI_Volume_3->value()) / (ui->MIDI_Expression_3->value()?3:2));
 		break;
 	    case 3:
 		ui->MIDI_Volume_4->blockSignals(true);
 		ui->MIDI_Volume_4->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_4->blockSignals(false);
-	        if (ui->MIDI_VolDisp_4->value()) ui->MIDI_VolDisp_4->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_4->value()) ui->MIDI_VolDisp_4->setValue((ui->MIDI_VolDisp_4->value() + 
 		  ui->MIDI_Expression_4->value() + ui->MIDI_Volume_4->value()) / (ui->MIDI_Expression_4->value()?3:2));
 		break;
 	    case 4:
 		ui->MIDI_Volume_5->blockSignals(true);
 		ui->MIDI_Volume_5->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_5->blockSignals(false);
-	        if (ui->MIDI_VolDisp_5->value()) ui->MIDI_VolDisp_5->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_5->value()) ui->MIDI_VolDisp_5->setValue((ui->MIDI_VolDisp_5->value() + 
 		  ui->MIDI_Expression_5->value() + ui->MIDI_Volume_5->value()) / (ui->MIDI_Expression_5->value()?3:2));
 		break;
 	    case 5:
 		ui->MIDI_Volume_6->blockSignals(true);
 		ui->MIDI_Volume_6->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_6->blockSignals(false);
-	        if (ui->MIDI_VolDisp_6->value()) ui->MIDI_VolDisp_6->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_6->value()) ui->MIDI_VolDisp_6->setValue((ui->MIDI_VolDisp_6->value() + 
 		  ui->MIDI_Expression_6->value() + ui->MIDI_Volume_6->value()) / (ui->MIDI_Expression_6->value()?3:2));
 		break;
 	    case 6:
 		ui->MIDI_Volume_7->blockSignals(true);
 		ui->MIDI_Volume_7->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_7->blockSignals(false);
-	        if (ui->MIDI_VolDisp_7->value()) ui->MIDI_VolDisp_7->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_7->value()) ui->MIDI_VolDisp_7->setValue((ui->MIDI_VolDisp_7->value() + 
 		  ui->MIDI_Expression_7->value() + ui->MIDI_Volume_7->value()) / (ui->MIDI_Expression_7->value()?3:2));
 		break;
 	    case 7:
 		ui->MIDI_Volume_8->blockSignals(true);
 		ui->MIDI_Volume_8->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_8->blockSignals(false);
-	        if (ui->MIDI_VolDisp_8->value()) ui->MIDI_VolDisp_8->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_8->value()) ui->MIDI_VolDisp_8->setValue((ui->MIDI_VolDisp_8->value() + 
 		  ui->MIDI_Expression_8->value() + ui->MIDI_Volume_8->value()) / (ui->MIDI_Expression_8->value()?3:2));
 		break;
 	    case 8:
 		ui->MIDI_Volume_9->blockSignals(true);
 		ui->MIDI_Volume_9->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_9->blockSignals(false);
-	        if (ui->MIDI_VolDisp_9->value()) ui->MIDI_VolDisp_9->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_9->value()) ui->MIDI_VolDisp_9->setValue((ui->MIDI_VolDisp_9->value() + 
 		  ui->MIDI_Expression_9->value() + ui->MIDI_Volume_9->value()) / (ui->MIDI_Expression_9->value()?3:2));
 		break;
 	    case 9:
 		ui->MIDI_Volume_10->blockSignals(true);
 		ui->MIDI_Volume_10->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_10->blockSignals(false);
-	        if (ui->MIDI_VolDisp_10->value()) ui->MIDI_VolDisp_10->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_10->value()) ui->MIDI_VolDisp_10->setValue((ui->MIDI_VolDisp_10->value() + 
 		  ui->MIDI_Expression_10->value() + ui->MIDI_Volume_10->value()) / (ui->MIDI_Expression_10->value()?3:2));
 		break;
 	    case 10:
 		ui->MIDI_Volume_11->blockSignals(true);
 		ui->MIDI_Volume_11->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_11->blockSignals(false);
-	        if (ui->MIDI_VolDisp_11->value()) ui->MIDI_VolDisp_11->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_11->value()) ui->MIDI_VolDisp_11->setValue((ui->MIDI_VolDisp_11->value() + 
 		  ui->MIDI_Expression_11->value() + ui->MIDI_Volume_11->value()) / (ui->MIDI_Expression_11->value()?3:2));
 		break;
 	    case 11:
 		ui->MIDI_Volume_12->blockSignals(true);
 		ui->MIDI_Volume_12->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_12->blockSignals(false);
-	        if (ui->MIDI_VolDisp_12->value()) ui->MIDI_VolDisp_12->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_12->value()) ui->MIDI_VolDisp_12->setValue((ui->MIDI_VolDisp_12->value() + 
 		  ui->MIDI_Expression_12->value() + ui->MIDI_Volume_12->value()) / (ui->MIDI_Expression_12->value()?3:2));
 		break;
 	    case 12:
 		ui->MIDI_Volume_13->blockSignals(true);
 		ui->MIDI_Volume_13->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_13->blockSignals(false);
-	        if (ui->MIDI_VolDisp_13->value()) ui->MIDI_VolDisp_13->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_13->value()) ui->MIDI_VolDisp_13->setValue((ui->MIDI_VolDisp_13->value() + 
 		  ui->MIDI_Expression_13->value() + ui->MIDI_Volume_13->value()) / (ui->MIDI_Expression_13->value()?3:2));
 		break;
 	    case 13:
 		ui->MIDI_Volume_14->blockSignals(true);
 		ui->MIDI_Volume_14->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_14->blockSignals(false);
-	        if (ui->MIDI_VolDisp_14->value()) ui->MIDI_VolDisp_14->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_14->value()) ui->MIDI_VolDisp_14->setValue((ui->MIDI_VolDisp_14->value() + 
 		  ui->MIDI_Expression_14->value() + ui->MIDI_Volume_14->value()) / (ui->MIDI_Expression_14->value()?3:2));
 		break;
 	    case 14:
 		ui->MIDI_Volume_15->blockSignals(true);
 		ui->MIDI_Volume_15->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_15->blockSignals(false);
-	        if (ui->MIDI_VolDisp_15->value()) ui->MIDI_VolDisp_15->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_15->value()) ui->MIDI_VolDisp_15->setValue((ui->MIDI_VolDisp_15->value() + 
 		  ui->MIDI_Expression_15->value() + ui->MIDI_Volume_15->value()) / (ui->MIDI_Expression_15->value()?3:2));
 		break;
 	    case 15:
 		ui->MIDI_Volume_16->blockSignals(true);
 		ui->MIDI_Volume_16->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Volume_16->blockSignals(false);
-	        if (ui->MIDI_VolDisp_16->value()) ui->MIDI_VolDisp_16->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_16->value()) ui->MIDI_VolDisp_16->setValue((ui->MIDI_VolDisp_16->value() + 
 		  ui->MIDI_Expression_16->value() + ui->MIDI_Volume_16->value()) / (ui->MIDI_Expression_16->value()?3:2));
 		break;
 	    default:
 		break;
 	    } // end SWITCH
 	   } // end IF VOL
-	   else if (all_events[event_num].data.d[1]==11) {	// Expr change
+	   else if (all_events[event_num].data.d[1]==0x0B) {	// Expr change using CC "Bx 0B nn"
 	    switch(all_events[event_num].data.d[0] & 0x0F) {
 	      case 0:
 		ui->MIDI_Expression_1->blockSignals(true);
 		ui->MIDI_Expression_1->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_1->blockSignals(false);
-	        if (ui->MIDI_VolDisp_1->value()) ui->MIDI_VolDisp_1->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_1->value()) ui->MIDI_VolDisp_1->setValue((ui->MIDI_VolDisp_1->value() + 
 		  ui->MIDI_Expression_1->value() + ui->MIDI_Volume_1->value()) / (ui->MIDI_Volume_1->value()?3:2));
 		break;
 	      case 1:
 		ui->MIDI_Expression_2->blockSignals(true);
 		ui->MIDI_Expression_2->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_2->blockSignals(false);
-	        if (ui->MIDI_VolDisp_2->value()) ui->MIDI_VolDisp_2->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_2->value()) ui->MIDI_VolDisp_2->setValue((ui->MIDI_VolDisp_2->value() + 
 		  ui->MIDI_Expression_2->value() + ui->MIDI_Volume_2->value()) / (ui->MIDI_Volume_2->value()?3:2));
 		break;
 	      case 2:
 		ui->MIDI_Expression_3->blockSignals(true);
 		ui->MIDI_Expression_3->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_3->blockSignals(false);
-	        if (ui->MIDI_VolDisp_3->value()) ui->MIDI_VolDisp_3->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_3->value()) ui->MIDI_VolDisp_3->setValue((ui->MIDI_VolDisp_3->value() + 
 		  ui->MIDI_Expression_3->value() + ui->MIDI_Volume_3->value()) / (ui->MIDI_Volume_3->value()?3:2));
 		break;
 	      case 3:
 		ui->MIDI_Expression_4->blockSignals(true);
 		ui->MIDI_Expression_4->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_4->blockSignals(false);
-	        if (ui->MIDI_VolDisp_4->value()) ui->MIDI_VolDisp_4->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_4->value()) ui->MIDI_VolDisp_4->setValue((ui->MIDI_VolDisp_4->value() + 
 		  ui->MIDI_Expression_4->value() + ui->MIDI_Volume_4->value()) / (ui->MIDI_Volume_4->value()?3:2));
 		break;
 	      case 4:
 		ui->MIDI_Expression_5->blockSignals(true);
 		ui->MIDI_Expression_5->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_5->blockSignals(false);
-	        if (ui->MIDI_VolDisp_5->value()) ui->MIDI_VolDisp_5->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_5->value()) ui->MIDI_VolDisp_5->setValue((ui->MIDI_VolDisp_5->value() + 
 		  ui->MIDI_Expression_5->value() + ui->MIDI_Volume_5->value()) / (ui->MIDI_Volume_5->value()?3:2));
 		break;
 	      case 5:
 		ui->MIDI_Expression_6->blockSignals(true);
 		ui->MIDI_Expression_6->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_6->blockSignals(false);
-	        if (ui->MIDI_VolDisp_6->value()) ui->MIDI_VolDisp_6->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_6->value()) ui->MIDI_VolDisp_6->setValue((ui->MIDI_VolDisp_6->value() + 
 		  ui->MIDI_Expression_6->value() + ui->MIDI_Volume_6->value()) / (ui->MIDI_Volume_6->value()?3:2));
 		break;
 	      case 6:
 		ui->MIDI_Expression_7->blockSignals(true);
 		ui->MIDI_Expression_7->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_7->blockSignals(false);
-	        if (ui->MIDI_VolDisp_7->value()) ui->MIDI_VolDisp_7->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_7->value()) ui->MIDI_VolDisp_7->setValue((ui->MIDI_VolDisp_7->value() + 
 		  ui->MIDI_Expression_7->value() + ui->MIDI_Volume_7->value()) / (ui->MIDI_Volume_7->value()?3:2));
 		break;
 	      case 7:
 		ui->MIDI_Expression_8->blockSignals(true);
 		ui->MIDI_Expression_8->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_8->blockSignals(false);
-	        if (ui->MIDI_VolDisp_8->value()) ui->MIDI_VolDisp_8->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_8->value()) ui->MIDI_VolDisp_8->setValue((ui->MIDI_VolDisp_8->value() + 
 		  ui->MIDI_Expression_8->value() + ui->MIDI_Volume_8->value()) / (ui->MIDI_Volume_8->value()?3:2));
 		break;
 	      case 8:
 		ui->MIDI_Expression_9->blockSignals(true);
 		ui->MIDI_Expression_9->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_9->blockSignals(false);
-	        if (ui->MIDI_VolDisp_9->value()) ui->MIDI_VolDisp_9->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_9->value()) ui->MIDI_VolDisp_9->setValue((ui->MIDI_VolDisp_9->value() + 
 		  ui->MIDI_Expression_9->value() + ui->MIDI_Volume_9->value()) / (ui->MIDI_Volume_9->value()?3:2));
 		break;
 	      case 9:
 		ui->MIDI_Expression_10->blockSignals(true);
 		ui->MIDI_Expression_10->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_10->blockSignals(false);
-	        if (ui->MIDI_VolDisp_10->value()) ui->MIDI_VolDisp_10->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_10->value()) ui->MIDI_VolDisp_10->setValue((ui->MIDI_VolDisp_10->value() + 
 		  ui->MIDI_Expression_10->value() + ui->MIDI_Volume_10->value()) / (ui->MIDI_Volume_10->value()?3:2));
 		break;
 	      case 10:
 		ui->MIDI_Expression_11->blockSignals(true);
 		ui->MIDI_Expression_11->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_11->blockSignals(false);
-	        if (ui->MIDI_VolDisp_11->value()) ui->MIDI_VolDisp_11->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_11->value()) ui->MIDI_VolDisp_11->setValue((ui->MIDI_VolDisp_11->value() + 
 		  ui->MIDI_Expression_11->value() + ui->MIDI_Volume_11->value()) / (ui->MIDI_Volume_11->value()?3:2));
 		break;
 	      case 11:
 		ui->MIDI_Expression_12->blockSignals(true);
 		ui->MIDI_Expression_12->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_12->blockSignals(false);
-	        if (ui->MIDI_VolDisp_12->value()) ui->MIDI_VolDisp_12->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_12->value()) ui->MIDI_VolDisp_12->setValue((ui->MIDI_VolDisp_12->value() + 
 		  ui->MIDI_Expression_12->value() + ui->MIDI_Volume_12->value()) / (ui->MIDI_Volume_12->value()?3:2));
 		break;
 	      case 12:
 		ui->MIDI_Expression_13->blockSignals(true);
 		ui->MIDI_Expression_13->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_13->blockSignals(false);
-	        if (ui->MIDI_VolDisp_13->value()) ui->MIDI_VolDisp_13->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_13->value()) ui->MIDI_VolDisp_13->setValue((ui->MIDI_VolDisp_13->value() + 
 		  ui->MIDI_Expression_13->value() + ui->MIDI_Volume_13->value()) / (ui->MIDI_Volume_13->value()?3:2));
 		break;
 	      case 13:
 		ui->MIDI_Expression_14->blockSignals(true);
 		ui->MIDI_Expression_14->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_14->blockSignals(false);
-	        if (ui->MIDI_VolDisp_14->value()) ui->MIDI_VolDisp_14->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_14->value()) ui->MIDI_VolDisp_14->setValue((ui->MIDI_VolDisp_14->value() + 
 		  ui->MIDI_Expression_14->value() + ui->MIDI_Volume_14->value()) / (ui->MIDI_Volume_14->value()?3:2));
 		break;
 	      case 14:
 		ui->MIDI_Expression_15->blockSignals(true);
 		ui->MIDI_Expression_15->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_15->blockSignals(false);
-	        if (ui->MIDI_VolDisp_15->value()) ui->MIDI_VolDisp_15->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_15->value()) ui->MIDI_VolDisp_15->setValue((ui->MIDI_VolDisp_15->value() + 
 		  ui->MIDI_Expression_15->value() + ui->MIDI_Volume_15->value()) / (ui->MIDI_Volume_15->value()?3:2));
 		break;
 	      case 15:
 		ui->MIDI_Expression_16->blockSignals(true);
 		ui->MIDI_Expression_16->setValue(all_events[event_num].data.d[2]);
 		ui->MIDI_Expression_16->blockSignals(false);
-	        if (ui->MIDI_VolDisp_16->value()) ui->MIDI_VolDisp_16->setValue((all_events[event_num].data.d[2] + 
+	        if (ui->MIDI_VolDisp_16->value()) ui->MIDI_VolDisp_16->setValue((ui->MIDI_VolDisp_16->value() + 
 		  ui->MIDI_Expression_16->value() + ui->MIDI_Volume_16->value()) / (ui->MIDI_Volume_16->value()?3:2));
 		break;
 	      default:
@@ -962,9 +964,9 @@ void MIDI_PLAY::tickDisplay() {
 	   } // end IF EXPR	 
 	} // end IF CC
 	
-	// scan for Note On, set volume disp to current VELOCITY value
+	// scan for Note On, set VolumeDisp to average of VELOCITY+VOLUME+EXPRESSION
 	if (all_events[event_num].type==SND_SEQ_EVENT_NOTEON) {
-	  switch(all_events[event_num].data.d[0] & 0x0F) {
+	  switch(all_events[event_num].data.d[0] & 0x0F) {	// switch by channel
 	    case 0:
 	      ui->MIDI_VolDisp_1->setValue((all_events[event_num].data.d[2] + ui->MIDI_Expression_1->value() + 
 	        ui->MIDI_Volume_1->value()) / (1+(ui->MIDI_Expression_1->value()?1:0)+(ui->MIDI_Volume_1->value()?1:0)));
