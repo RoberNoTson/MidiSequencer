@@ -422,7 +422,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_1">
+    <widget class="QSlider" name="MIDI_Volume_1">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -549,7 +549,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_2">
+    <widget class="QSlider" name="MIDI_Volume_2">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -676,7 +676,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_3">
+    <widget class="QSlider" name="MIDI_Volume_3">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -803,7 +803,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_4">
+    <widget class="QSlider" name="MIDI_Volume_4">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -930,7 +930,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_5">
+    <widget class="QSlider" name="MIDI_Volume_5">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -1057,7 +1057,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_6">
+    <widget class="QSlider" name="MIDI_Volume_6">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -1184,7 +1184,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_7">
+    <widget class="QSlider" name="MIDI_Volume_7">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -1311,7 +1311,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_8">
+    <widget class="QSlider" name="MIDI_Volume_8">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -1438,7 +1438,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_9">
+    <widget class="QSlider" name="MIDI_Volume_9">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -1565,7 +1565,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_10">
+    <widget class="QSlider" name="MIDI_Volume_10">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -1692,7 +1692,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_11">
+    <widget class="QSlider" name="MIDI_Volume_11">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -1819,7 +1819,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_12">
+    <widget class="QSlider" name="MIDI_Volume_12">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -1946,7 +1946,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_13">
+    <widget class="QSlider" name="MIDI_Volume_13">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -2073,7 +2073,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_14">
+    <widget class="QSlider" name="MIDI_Volume_14">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -2200,7 +2200,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_15">
+    <widget class="QSlider" name="MIDI_Volume_15">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -2327,7 +2327,7 @@
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
-    <widget class="QSlider" name="MIDI_Velocity_16">
+    <widget class="QSlider" name="MIDI_Volume_16">
      <property name="geometry">
       <rect>
        <x>0</x>
