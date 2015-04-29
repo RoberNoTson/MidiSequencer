@@ -282,11 +282,12 @@ int MIDI_PLAY::read_track(int track_end, char *file_name) {
             break;
         }
         switch(x) {
-        case 0x8: // channel msg with 2 parameter bytes
-        case 0x9:
-        case 0xa:
-        case 0xb:
-        case 0xe:
+	// channel msg with 2 parameter bytes
+        case 0x8: 	// NOTEOFF
+        case 0x9:	// NOTEON
+        case 0xa:	// KEYPRESS
+        case 0xb:	// CONTROLLER
+        case 0xe:	// PITCHBEND
             Event.type = cmd_type[cmd >> 4];
             Event.port = port;
             Event.tick = tick;
@@ -295,8 +296,9 @@ int MIDI_PLAY::read_track(int track_end, char *file_name) {
             Event.data.d[2] = read_byte() & 0x7f;
             all_events.push_back(Event);
             break;
-        case 0xc: // channel msg with 1 parameter byte
-        case 0xd:
+	// channel msg with 1 parameter byte
+        case 0xc:	// PGMCHANGE
+        case 0xd:	// CHANPRESSURE
             Event.type = cmd_type[cmd >> 4];
             Event.port = port;
             Event.tick = tick;
@@ -304,7 +306,7 @@ int MIDI_PLAY::read_track(int track_end, char *file_name) {
             Event.data.d[1] = read_byte() & 0x7f;
             all_events.push_back(Event);
             break;
-        case 0xf:
+        case 0xf:	// SYSEX
             switch (cmd) {
             case 0xf0: // sysex
             case 0xf7: // continued sysex, or escaped commands

@@ -388,7 +388,7 @@
      <number>11</number>
     </property>
    </widget>
-   <widget class="QFrame" name="frame">
+   <widget class="QFrame" name="TrackVol_1">
     <property name="geometry">
      <rect>
       <x>30</x>
@@ -515,7 +515,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_2">
+   <widget class="QFrame" name="TrackVol_2">
     <property name="geometry">
      <rect>
       <x>70</x>
@@ -642,7 +642,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_3">
+   <widget class="QFrame" name="TrackVol_3">
     <property name="geometry">
      <rect>
       <x>110</x>
@@ -769,7 +769,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_4">
+   <widget class="QFrame" name="TrackVol_4">
     <property name="geometry">
      <rect>
       <x>150</x>
@@ -896,7 +896,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_5">
+   <widget class="QFrame" name="TrackVol_5">
     <property name="geometry">
      <rect>
       <x>190</x>
@@ -1023,7 +1023,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_6">
+   <widget class="QFrame" name="TrackVol_6">
     <property name="geometry">
      <rect>
       <x>230</x>
@@ -1150,7 +1150,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_7">
+   <widget class="QFrame" name="TrackVol_7">
     <property name="geometry">
      <rect>
       <x>270</x>
@@ -1277,7 +1277,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_8">
+   <widget class="QFrame" name="TrackVol_8">
     <property name="geometry">
      <rect>
       <x>310</x>
@@ -1404,7 +1404,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_9">
+   <widget class="QFrame" name="TrackVol_9">
     <property name="geometry">
      <rect>
       <x>30</x>
@@ -1531,7 +1531,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_10">
+   <widget class="QFrame" name="TrackVol_10">
     <property name="geometry">
      <rect>
       <x>70</x>
@@ -1658,7 +1658,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_11">
+   <widget class="QFrame" name="TrackVol_11">
     <property name="geometry">
      <rect>
       <x>110</x>
@@ -1785,7 +1785,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_12">
+   <widget class="QFrame" name="TrackVol_12">
     <property name="geometry">
      <rect>
       <x>150</x>
@@ -1912,7 +1912,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_13">
+   <widget class="QFrame" name="TrackVol_13">
     <property name="geometry">
      <rect>
       <x>190</x>
@@ -2039,7 +2039,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_14">
+   <widget class="QFrame" name="TrackVol_14">
     <property name="geometry">
      <rect>
       <x>230</x>
@@ -2166,7 +2166,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_15">
+   <widget class="QFrame" name="TrackVol_15">
     <property name="geometry">
      <rect>
       <x>270</x>
@@ -2293,7 +2293,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame_16">
+   <widget class="QFrame" name="TrackVol_16">
     <property name="geometry">
      <rect>
       <x>310</x>

@@ -2,6 +2,8 @@
 /* Function list:
  *   MIDI_PLAY     -- constructor
  *  ~MIDI_PLAY     -- destructor
+ *  startPlayer
+ *  stopPlayer
  *  on_Open_button_clicked   -- SLOT
  *  on_Play_button_toggled   -- SLOT
  *  on_Pause_button_toggled   -- SLOT
@@ -49,6 +51,7 @@
  *  on_MIDI_Expression_14_valueChanged(int)   -- SLOT
  *  on_MIDI_Expression_15_valueChanged(int)   -- SLOT
  *  on_MIDI_Expression_16_valueChanged(int)   -- SLOT
+ *  tickDisplay   -- SLOT
  *  check_snd       -- INLINE
  *  read_id   -- INLINE
  *  send_CC
@@ -57,11 +60,8 @@
  *  close_seq
  *  connect_port
  *  disconnect_port
- *  tickDisplay
  *  getRawDev
  *  getPorts
- *  startPlayer
- *  stopPlayer
  */
 #include "midi_play.h"
 #include "ui_midi_play.h"
@@ -131,6 +131,211 @@ MIDI_PLAY::~MIDI_PLAY()
     delete ui;
 }   // end destructor
 
+void MIDI_PLAY::startPlayer(int startTick) {
+    if (pid>0) 
+      return;
+    pid=fork();
+    if (!pid) {
+        play_midi(startTick);
+        exit(EXIT_SUCCESS);
+    }   // end pid fork
+}
+
+void MIDI_PLAY::stopPlayer() {
+    if (pid) {
+        kill(pid,SIGKILL);
+        waitpid(pid,NULL,0);
+    }
+    pid = 0;
+    snd_seq_drop_output(seq);
+    snd_seq_drain_output(seq);
+}
+
+//  FUNCTIONS
+void MIDI_PLAY::send_CC(char * buf,int data_size) {
+    snd_seq_event_t ev;
+    snd_seq_ev_clear(&ev);
+    ev.type = SND_SEQ_EVENT_CONTROLLER;
+    ev.dest = ports[0];
+    ev.data.control.channel = buf[0];   // channel number
+    if (data_size>1)
+      ev.data.control.param = buf[1];   // controller number
+    if (data_size==3)
+      ev.data.control.value = buf[2];   // controller value
+    snd_seq_ev_set_fixed(&ev);
+    snd_seq_ev_set_direct(&ev);
+    snd_seq_event_output_direct(seq, &ev);
+    snd_seq_drain_output(seq);
+}   // end send_CC
+
+void MIDI_PLAY::send_SysEx(char * buf,int data_size) {
+    if (ui->Play_button->isChecked()) on_Pause_button_toggled(true);
+    snd_seq_event_t ev;
+    snd_seq_ev_clear(&ev);
+    ev.type = SND_SEQ_EVENT_SYSEX;
+    ev.dest = ports[0];
+    snd_seq_ev_set_variable(&ev, data_size, buf);
+    snd_seq_ev_set_direct(&ev);
+    snd_seq_event_output_direct(seq, &ev);
+    snd_seq_drain_output(seq);
+    if (ui->Play_button->isChecked()) on_Pause_button_toggled(false);
+}   // end send_SysEx
+
+void MIDI_PLAY::init_seq() {
+    if (!seq) {
+        int err = snd_seq_open(&seq, "default", SND_SEQ_OPEN_OUTPUT, 0);
+        check_snd("open sequencer", err);
+        err = snd_seq_set_client_name(seq, "midi_play");
+        check_snd("set client name", err);
+        int client = snd_seq_client_id(seq);    // client # is 128 by default
+        check_snd("get client id", client);
+    }
+}
+
+void MIDI_PLAY::close_seq() {
+    if (seq) {
+        snd_seq_stop_queue(seq,queue,NULL);
+        snd_seq_drop_output(seq);
+        snd_seq_drain_output(seq);
+        snd_seq_close(seq);
+        seq = 0;
+    }
+}
+
+void MIDI_PLAY::connect_port() {
+    if (seq && strlen(port_name)) {
+        //  create_source_port
+        snd_seq_port_info_t *pinfo;
+        snd_seq_port_info_alloca(&pinfo);
+        // the first created port is 0 anyway, but let's make sure ...
+        snd_seq_port_info_set_port(pinfo, 0);
+        snd_seq_port_info_set_port_specified(pinfo, 1);
+        snd_seq_port_info_set_name(pinfo, "midi_play");
+        snd_seq_port_info_set_capability(pinfo, 0);
+        snd_seq_port_info_set_type(pinfo,
+               SND_SEQ_PORT_TYPE_MIDI_GENERIC |
+               SND_SEQ_PORT_TYPE_APPLICATION);
+        int err = snd_seq_create_port(seq, pinfo);
+        check_snd("create port", err);
+	
+        ports = (snd_seq_addr_t *)realloc(ports, sizeof(snd_seq_addr_t));
+        err = snd_seq_parse_address(seq, &ports[0], port_name);
+        if (err < 0) {
+            QMessageBox::critical(this, "MIDI Sequencer", QString("Invalid port%1\n%2") .arg(port_name) .arg(snd_strerror(err)));
+            return;
+        }
+        err = snd_seq_connect_to(seq, 0, ports[0].client, ports[0].port);
+        if (err < 0 && err!= -16)
+            QMessageBox::critical(this, "MIDI Sequencer", QString("%4 Cannot connect to port %1:%2 - %3") .arg(ports[0].client) .arg(ports[0].port) .arg(strerror(errno)) .arg(err));
+    }
+}   // end connect_port
+
+void MIDI_PLAY::disconnect_port() {
+    if (seq && strlen(port_name)) {
+        int err;
+        ports = (snd_seq_addr_t *)realloc(ports, sizeof(snd_seq_addr_t));
+        err = snd_seq_parse_address(seq, &ports[0], port_name);
+        if (err < 0) {
+            QMessageBox::critical(this, "MIDI Sequencer", QString("Invalid port%1\n%2") .arg(port_name) .arg(snd_strerror(err)));
+            return;
+        }
+        err = snd_seq_disconnect_to(seq, 0, ports[0].client, ports[0].port);
+    }   // end if seq
+}   // end disconnect_port
+
+void MIDI_PLAY::getPorts(QString buf) {
+    // fill in the combobox with all available ports
+    // or set port_name to the port passed in buf
+    snd_seq_client_info_t *cinfo;
+    snd_seq_port_info_t *pinfo;
+    snd_seq_client_info_alloca(&cinfo);
+    snd_seq_port_info_alloca(&pinfo);
+    snd_seq_client_info_set_client(cinfo, -1);
+    if (buf.isEmpty()) {
+        ui->PortBox->blockSignals(true);
+        ui->PortBox->clear();
+        ui->PortBox->blockSignals(false);
+    }
+    while (snd_seq_query_next_client(seq, cinfo) >= 0) {
+        int client = snd_seq_client_info_get_client(cinfo);
+        snd_seq_port_info_set_client(pinfo, client);
+        snd_seq_port_info_set_port(pinfo, -1);
+        while (snd_seq_query_next_port(seq, pinfo) >= 0) {
+            /* we need both WRITE and SUBS_WRITE */
+            if ((snd_seq_port_info_get_capability(pinfo)
+                 & (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE))
+                != (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE))
+                continue;
+            if (buf.isEmpty()) {
+                ui->PortBox->blockSignals(true);
+                ui->PortBox->insertItem(9999, snd_seq_port_info_get_name(pinfo));
+                ui->PortBox->blockSignals(false);
+            }
+            else if (buf.toAscii().data() == QString(snd_seq_port_info_get_name(pinfo))) {
+                QString holdit = QString::number(snd_seq_port_info_get_client(pinfo)) + ":" + QString::number(snd_seq_port_info_get_port(pinfo));
+                strcpy(port_name, holdit.toAscii().data());
+            }
+        }
+    }
+}   // end getPorts
+
+void MIDI_PLAY::getRawDev(QString buf) {
+  if (buf.isEmpty()) return;
+  signed int card_num=-1;
+  signed int dev_num=-1;
+  signed int subdev_num=-1;
+  int err,i;
+  char	str[64];
+  snd_rawmidi_info_t  *rawMidiInfo;
+  snd_ctl_t *cardHandle;
+  err = snd_card_next(&card_num);
+  if (err < 0) {
+     memset(MIDI_dev,0,sizeof(MIDI_dev));
+    // no MIDI cards found in the system
+    snd_card_next(&card_num);
+    return;
+  }
+  while (card_num >= 0) {
+    sprintf(str, "hw:%i", card_num);
+    if ((err = snd_ctl_open(&cardHandle, str, 0)) < 0) break;
+    dev_num = -1;
+    err = snd_ctl_rawmidi_next_device(cardHandle, &dev_num);
+    if (err < 0) {
+      // card exists, but no midi device was found
+      snd_card_next(&card_num);
+      continue;
+    }
+    while (dev_num >= 0) {
+      snd_rawmidi_info_alloca(&rawMidiInfo);
+      memset(rawMidiInfo, 0, snd_rawmidi_info_sizeof());
+      // Tell ALSA which device (number) we want info about
+      snd_rawmidi_info_set_device(rawMidiInfo, dev_num);
+      // Get info on the MIDI outs of this device
+      snd_rawmidi_info_set_stream(rawMidiInfo, SND_RAWMIDI_STREAM_OUTPUT);
+      i = -1;
+      subdev_num = 1;
+      // More subdevices?
+      while (++i < subdev_num) {
+          // Tell ALSA to fill in our snd_rawmidi_info_t with info on this subdevice
+          snd_rawmidi_info_set_subdevice(rawMidiInfo, i);
+          if ((err = snd_ctl_rawmidi_info(cardHandle, rawMidiInfo)) < 0) continue;
+          // Print out how many subdevices (once only)
+          if (!i) {
+              subdev_num = snd_rawmidi_info_get_subdevices_count(rawMidiInfo);
+          }
+          // got a valid card, dev and subdev
+          if (buf == (QString)snd_rawmidi_info_get_subdevice_name(rawMidiInfo)) {
+              QString holdit = "hw:" + QString::number(card_num) + "," + QString::number(dev_num) + "," + QString::number(i);
+              strcpy(MIDI_dev, holdit.toAscii().data());
+          }
+      }	// end WHILE subdev_num
+      snd_ctl_rawmidi_next_device(cardHandle, &dev_num);
+    }	// end WHILE dev_num
+    snd_ctl_close(cardHandle);
+    err = snd_card_next(&card_num);
+  }	// end WHILE card_num
+}	// end getRawDev()
+
 //  SLOTS
 void MIDI_PLAY::on_Open_button_clicked()
 {
@@ -138,6 +343,22 @@ void MIDI_PLAY::on_Open_button_clicked()
     ui->Play_button->setChecked(false);
     ui->Play_button->setEnabled(false);
     ui->Pause_button->setEnabled(false);
+    ui->TrackVol_1->setEnabled(false);
+    ui->TrackVol_2->setEnabled(false);
+    ui->TrackVol_3->setEnabled(false);
+    ui->TrackVol_4->setEnabled(false);
+    ui->TrackVol_5->setEnabled(false);
+    ui->TrackVol_6->setEnabled(false);
+    ui->TrackVol_7->setEnabled(false);
+    ui->TrackVol_8->setEnabled(false);
+    ui->TrackVol_9->setEnabled(false);
+    ui->TrackVol_10->setEnabled(false);
+    ui->TrackVol_11->setEnabled(false);
+    ui->TrackVol_12->setEnabled(false);
+    ui->TrackVol_13->setEnabled(false);
+    ui->TrackVol_14->setEnabled(false);
+    ui->TrackVol_15->setEnabled(false);
+    ui->TrackVol_16->setEnabled(false);
     ui->MidiFile_display->clear();
     ui->MIDI_KeySig->clear();
     ui->MIDI_Transpose->setValue(0);
@@ -146,6 +367,7 @@ void MIDI_PLAY::on_Open_button_clicked()
     QString fn = QFileDialog::getOpenFileName(this, "Open MIDI File","/Data/music/midi","Midi files (*.mid, *.MID);;Any (*.*)");
     if (fn.isEmpty())
         return;
+    // selected a valid MIDI file, process it
     strcpy(playfile, fn.toAscii().data());
     ui->MidiFile_display->setText(fn);
     ui->MIDI_length_display->setText("00:00");
@@ -166,7 +388,66 @@ void MIDI_PLAY::on_Open_button_clicked()
 	tc.new_tempo = 60000000/Event->data.tempo;
 	tempoTable.push_back(tc);
       }
-    }
+      // enable tracks that have notes
+      if (Event->type == SND_SEQ_EVENT_NOTEON) {
+	switch(Event->data.d[0]) {
+	  case 0:
+	  ui->TrackVol_1->setEnabled(true);
+	  break;
+	  case 1:
+	  ui->TrackVol_2->setEnabled(true);
+	  break;
+	  case 2:
+	  ui->TrackVol_3->setEnabled(true);
+	  break;
+	  case 3:
+	  ui->TrackVol_4->setEnabled(true);
+	  break;
+	  case 4:
+	  ui->TrackVol_5->setEnabled(true);
+	  break;
+	  case 5:
+	  ui->TrackVol_6->setEnabled(true);
+	  break;
+	  case 6:
+	  ui->TrackVol_7->setEnabled(true);
+	  break;
+	  case 7:
+	  ui->TrackVol_8->setEnabled(true);
+	  break;
+	  case 8:
+	  ui->TrackVol_9->setEnabled(true);
+	  break;
+	  case 9:
+	  ui->TrackVol_10->setEnabled(true);
+	  break;
+	  case 10:
+	  ui->TrackVol_11->setEnabled(true);
+	  break;
+	  case 11:
+	  ui->TrackVol_12->setEnabled(true);
+	  break;
+	  case 12:
+	  ui->TrackVol_13->setEnabled(true);
+	  break;
+	  case 13:
+	  ui->TrackVol_14->setEnabled(true);
+	  break;
+	  case 14:
+	  ui->TrackVol_15->setEnabled(true);
+	  break;
+	  case 15:
+	  ui->TrackVol_16->setEnabled(true);
+	  break;
+	  default:
+	    break;
+	} // end switch
+      } // end if SND_SEQ_EVENT_NOTEON
+      // set initial track VOLUME/EXPRESSION levels
+      if (Event->type == SND_SEQ_EVENT_CONTROLLER) {
+	
+      } // end if SND_SEQ_EVENT_CONTROLLER
+    } // end for
     old_tempo = tempoTable.begin()->new_tempo;
     ui->MIDI_Tempo_Master->blockSignals(true);
     ui->MIDI_Tempo_Master->setValue(old_tempo);
@@ -392,17 +673,13 @@ void MIDI_PLAY::on_Panic_button_clicked()
 {
   char buf[6];
   if (seq) {
-    if (!ui->Play_button->isChecked()) {
-      connect_port();
-    }
+    if (!ui->Play_button->isChecked()) connect_port();
     for (int x=0;x<16;x++) {
         buf[0] = 0xb0+x;
-        buf[1] = 0x7B;
+        buf[1] = 0x7B;	// All Notes Off (except Hold  and Sost.)
         buf[2] = 00;
         send_CC(buf,3);
-        buf[0] = 0xb0+x;
-        buf[1] = 0x79;
-        buf[2] = 00;
+        buf[1] = 0x79;	// Reset All Controllers (kill any Hold/Sost/etc.)
         send_CC(buf,3);
     } // end FOR
   } // end IF SEQ
@@ -453,7 +730,7 @@ void MIDI_PLAY::on_PortBox_currentIndexChanged(QString buf)
     disconnect_port();
     getPorts(buf);
     connect_port();
-}	// end on_PortBox_currentIndexChanged
+}  // end on_PortBox_currentIndexChanged
 
 void MIDI_PLAY::on_progressBar_sliderPressed()
 {
@@ -502,192 +779,403 @@ void MIDI_PLAY::on_progressBar_sliderMoved(int val) {
     new_seconds *= song_length_seconds;  
     ui->MIDI_time_display->setText(QString::number(static_cast<int>(new_seconds)/60).rightJustified(2,'0')+
     ":"+QString::number(static_cast<int>(new_seconds)%60).rightJustified(2,'0'));
+}  // end on_progressBar_sliderMoved
+
+void MIDI_PLAY::on_MIDI_Volume_Master_valueChanged(int val) {
+  char buf[8];
+  bool paused = ui->Pause_button->isChecked();
+  if (seq && !ui->MIDI_GMGS_button->isChecked()) {
+    if (!paused) on_Pause_button_toggled(true);
+      if (!ui->Play_button->isChecked()) connect_port();
+      buf[0] = 0xF0;
+      buf[1] = 0x7F;
+      buf[2] = 0x7F;
+      buf[3] = 0x04;
+      buf[4] = 0x01;
+      buf[5] = 0x00;
+      buf[6] = val;
+      buf[7] = 0xF7;
+      send_SysEx(buf, 8);
+    if (!paused) on_Pause_button_toggled(false);
+  }
 }
 
-//  FUNCTIONS
-void MIDI_PLAY::send_CC(char * buf,int data_size) {
+void MIDI_PLAY::on_MIDI_Tempo_Master_valueChanged(int val) {
+  int tempo;
+  bool paused = ui->Pause_button->isChecked();
+  if (seq && !ui->MIDI_GMGS_button->isChecked()) {
+    tempo = 60000000/val;
     snd_seq_event_t ev;
     snd_seq_ev_clear(&ev);
-    ev.type = SND_SEQ_EVENT_CONTROLLER;
-    ev.dest = ports[0];
-    ev.data.control.channel = buf[0];   // channel number
-    if (data_size>1)
-      ev.data.control.param = buf[1];   // controller number
-    if (data_size==3)
-      ev.data.control.value = buf[2];   // controller value
+    ev.data.queue.queue = queue;
+    ev.data.queue.param.value = tempo;
+    ev.type = SND_SEQ_EVENT_TEMPO;
     snd_seq_ev_set_fixed(&ev);
     snd_seq_ev_set_direct(&ev);
+    if (!paused) on_Pause_button_toggled(true);
     snd_seq_event_output_direct(seq, &ev);
-    snd_seq_drain_output(seq);
-}   // end send_CC
-
-void MIDI_PLAY::send_SysEx(char * buf,int data_size) {
-    if (ui->Play_button->isChecked()) on_Pause_button_toggled(true);
-    snd_seq_event_t ev;
-    snd_seq_ev_clear(&ev);
-    ev.type = SND_SEQ_EVENT_SYSEX;
-    ev.dest = ports[0];
-    snd_seq_ev_set_variable(&ev, data_size, buf);
-    snd_seq_ev_set_direct(&ev);
-    snd_seq_event_output_direct(seq, &ev);
-    snd_seq_drain_output(seq);
-    if (ui->Play_button->isChecked()) on_Pause_button_toggled(false);
-}   // end send_SysEx
-
-void MIDI_PLAY::init_seq() {
-    if (!seq) {
-        int err = snd_seq_open(&seq, "default", SND_SEQ_OPEN_OUTPUT, 0);
-        check_snd("open sequencer", err);
-        err = snd_seq_set_client_name(seq, "midi_play");
-        check_snd("set client name", err);
-        int client = snd_seq_client_id(seq);    // client # is 128 by default
-        check_snd("get client id", client);
-    }
-}
-
-void MIDI_PLAY::close_seq() {
-    if (seq) {
-        snd_seq_stop_queue(seq,queue,NULL);
-        snd_seq_drop_output(seq);
-        snd_seq_drain_output(seq);
-        snd_seq_close(seq);
-        seq = 0;
-    }
-}
-
-void MIDI_PLAY::connect_port() {
-    if (seq && strlen(port_name)) {
-        //  create_source_port
-        snd_seq_port_info_t *pinfo;
-        snd_seq_port_info_alloca(&pinfo);
-        // the first created port is 0 anyway, but let's make sure ...
-        snd_seq_port_info_set_port(pinfo, 0);
-        snd_seq_port_info_set_port_specified(pinfo, 1);
-        snd_seq_port_info_set_name(pinfo, "midi_play");
-        snd_seq_port_info_set_capability(pinfo, 0);
-        snd_seq_port_info_set_type(pinfo,
-               SND_SEQ_PORT_TYPE_MIDI_GENERIC |
-               SND_SEQ_PORT_TYPE_APPLICATION);
-        int err = snd_seq_create_port(seq, pinfo);
-        check_snd("create port", err);
-	
-        ports = (snd_seq_addr_t *)realloc(ports, sizeof(snd_seq_addr_t));
-        err = snd_seq_parse_address(seq, &ports[0], port_name);
-        if (err < 0) {
-            QMessageBox::critical(this, "MIDI Sequencer", QString("Invalid port%1\n%2") .arg(port_name) .arg(snd_strerror(err)));
-            return;
-        }
-        err = snd_seq_connect_to(seq, 0, ports[0].client, ports[0].port);
-        if (err < 0 && err!= -16)
-            QMessageBox::critical(this, "MIDI Sequencer", QString("%4 Cannot connect to port %1:%2 - %3") .arg(ports[0].client) .arg(ports[0].port) .arg(strerror(errno)) .arg(err));
-    }
-}   // end connect_port
-
-void MIDI_PLAY::disconnect_port() {
-    if (seq && strlen(port_name)) {
-        int err;
-        ports = (snd_seq_addr_t *)realloc(ports, sizeof(snd_seq_addr_t));
-        err = snd_seq_parse_address(seq, &ports[0], port_name);
-        if (err < 0) {
-            QMessageBox::critical(this, "MIDI Sequencer", QString("Invalid port%1\n%2") .arg(port_name) .arg(snd_strerror(err)));
-            return;
-        }
-        err = snd_seq_disconnect_to(seq, 0, ports[0].client, ports[0].port);
-    }   // end if seq
-}   // end disconnect_port
-
-void MIDI_PLAY::getPorts(QString buf) {
-    // fill in the combobox with all available ports
-    // or set port_name to the port passed in buf
-    snd_seq_client_info_t *cinfo;
-    snd_seq_port_info_t *pinfo;
-    snd_seq_client_info_alloca(&cinfo);
-    snd_seq_port_info_alloca(&pinfo);
-    snd_seq_client_info_set_client(cinfo, -1);
-    if (buf.isEmpty()) {
-        ui->PortBox->blockSignals(true);
-        ui->PortBox->clear();
-        ui->PortBox->blockSignals(false);
-    }
-    while (snd_seq_query_next_client(seq, cinfo) >= 0) {
-        int client = snd_seq_client_info_get_client(cinfo);
-        snd_seq_port_info_set_client(pinfo, client);
-        snd_seq_port_info_set_port(pinfo, -1);
-        while (snd_seq_query_next_port(seq, pinfo) >= 0) {
-            /* we need both WRITE and SUBS_WRITE */
-            if ((snd_seq_port_info_get_capability(pinfo)
-                 & (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE))
-                != (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE))
-                continue;
-            if (buf.isEmpty()) {
-                ui->PortBox->blockSignals(true);
-                ui->PortBox->insertItem(9999, snd_seq_port_info_get_name(pinfo));
-                ui->PortBox->blockSignals(false);
-            }
-            else if (buf.toAscii().data() == QString(snd_seq_port_info_get_name(pinfo))) {
-                QString holdit = QString::number(snd_seq_port_info_get_client(pinfo)) + ":" + QString::number(snd_seq_port_info_get_port(pinfo));
-                strcpy(port_name, holdit.toAscii().data());
-            }
-        }
-    }
-}   // end getPorts
-
-void MIDI_PLAY::getRawDev(QString buf) {
-  if (buf.isEmpty()) return;
-  signed int card_num=-1;
-  signed int dev_num=-1;
-  signed int subdev_num=-1;
-  int err,i;
-  char	str[64];
-  snd_rawmidi_info_t  *rawMidiInfo;
-  snd_ctl_t *cardHandle;
-  err = snd_card_next(&card_num);
-  if (err < 0) {
-     memset(MIDI_dev,0,sizeof(MIDI_dev));
-    // no MIDI cards found in the system
-    snd_card_next(&card_num);
-    return;
+    if (!paused) on_Pause_button_toggled(false);
   }
-  while (card_num >= 0) {
-    sprintf(str, "hw:%i", card_num);
-    if ((err = snd_ctl_open(&cardHandle, str, 0)) < 0) break;
-    dev_num = -1;
-    err = snd_ctl_rawmidi_next_device(cardHandle, &dev_num);
-    if (err < 0) {
-      // card exists, but no midi device was found
-      snd_card_next(&card_num);
-      continue;
-    }
-    while (dev_num >= 0) {
-      snd_rawmidi_info_alloca(&rawMidiInfo);
-      memset(rawMidiInfo, 0, snd_rawmidi_info_sizeof());
-      // Tell ALSA which device (number) we want info about
-      snd_rawmidi_info_set_device(rawMidiInfo, dev_num);
-      // Get info on the MIDI outs of this device
-      snd_rawmidi_info_set_stream(rawMidiInfo, SND_RAWMIDI_STREAM_OUTPUT);
-      i = -1;
-      subdev_num = 1;
-      // More subdevices?
-      while (++i < subdev_num) {
-          // Tell ALSA to fill in our snd_rawmidi_info_t with info on this subdevice
-          snd_rawmidi_info_set_subdevice(rawMidiInfo, i);
-          if ((err = snd_ctl_rawmidi_info(cardHandle, rawMidiInfo)) < 0) continue;
-          // Print out how many subdevices (once only)
-          if (!i) {
-              subdev_num = snd_rawmidi_info_get_subdevices_count(rawMidiInfo);
-          }
-          // got a valid card, dev and subdev
-          if (buf == (QString)snd_rawmidi_info_get_subdevice_name(rawMidiInfo)) {
-              QString holdit = "hw:" + QString::number(card_num) + "," + QString::number(dev_num) + "," + QString::number(i);
-              strcpy(MIDI_dev, holdit.toAscii().data());
-          }
-      }	// end WHILE subdev_num
-      snd_ctl_rawmidi_next_device(cardHandle, &dev_num);
-    }	// end WHILE dev_num
-    snd_ctl_close(cardHandle);
-    err = snd_card_next(&card_num);
-  }	// end WHILE card_num
-}	// end getRawDev()
+}
+
+void MIDI_PLAY::on_MIDI_Exit_button_clicked() {
+    this->close();
+}
+
+void MIDI_PLAY::on_MIDI_GMGS_button_toggled(bool checked) {
+  if (checked) {
+    ui->MIDI_GMGS_button->setText("GM");
+  }
+  else {
+    ui->MIDI_GMGS_button->setText("GS");
+  }
+}
+
+void MIDI_PLAY::on_MIDI_Transpose_valueChanged(signed int val) {
+  // if timer is running, pause playback, change the key, and resume
+  bool paused=ui->Pause_button->isChecked();
+  if (!paused) on_Pause_button_toggled(true);
+  // change the Key Signature if one is displayed
+  if (ui->MIDI_KeySig->text().size()) {
+  ui->MIDI_KeySig->clear();
+  signed int y = (7*val) + (sf>7?sf-256 :sf);
+  while(y>7)
+    y -= 12;
+  while(y<-7)
+    y += 12;
+  y = y<0?0x100+y:y;
+  if (minor_key) {
+    switch(y) {
+      case 0:
+        ui->MIDI_KeySig->setText("a minor");
+        break;
+      case 1:
+        ui->MIDI_KeySig->setText("e minor");
+        break;
+      case 2:
+        ui->MIDI_KeySig->setText("b minor");
+        break;
+      case 3:
+        ui->MIDI_KeySig->setText("f# minor");
+        break;
+      case 4:
+        ui->MIDI_KeySig->setText("c# minor");
+        break;
+      case 5:
+        ui->MIDI_KeySig->setText("g# minor");
+        break;
+      case 6:
+        ui->MIDI_KeySig->setText("d# minor");
+        break;
+      case 7:
+        ui->MIDI_KeySig->setText("a# minor");
+        break;
+      case 0xff:
+        ui->MIDI_KeySig->setText("d minor");
+        break;
+      case 0xfe:
+        ui->MIDI_KeySig->setText("g minor");
+        break;
+      case 0xfd:
+        ui->MIDI_KeySig->setText("c minor");
+        break;
+      case 0xFC:
+        ui->MIDI_KeySig->setText("f minor");
+        break;
+      case 0xFB:
+        ui->MIDI_KeySig->setText("bf minor");
+        break;
+      case 0xFA:
+        ui->MIDI_KeySig->setText("ef minor");
+        break;
+      case 0xF9:
+        ui->MIDI_KeySig->setText("af minor");
+        break;
+      default:
+	ui->MIDI_KeySig->clear();
+	break;
+    }  // end switch
+  }   // end ninor key
+  else {
+    switch(y) {
+      case 0:
+        ui->MIDI_KeySig->setText("C Major");
+        break;
+      case 1:
+        ui->MIDI_KeySig->setText("G Major");
+        break;
+      case 2:
+        ui->MIDI_KeySig->setText("D Major");
+        break;
+      case 3:
+        ui->MIDI_KeySig->setText("A Major");
+        break;
+      case 4:
+        ui->MIDI_KeySig->setText("E Major");
+        break;
+      case 5:
+        ui->MIDI_KeySig->setText("B Major");
+        break;
+      case 6:
+        ui->MIDI_KeySig->setText("F# Major");
+        break;
+      case 7:
+        ui->MIDI_KeySig->setText("C# Major");
+        break;
+      case 0xFF:
+        ui->MIDI_KeySig->setText("F Major");
+        break;
+      case 0xFE:
+        ui->MIDI_KeySig->setText("Bf Major");
+        break;
+      case 0xFD:
+        ui->MIDI_KeySig->setText("Ef Major");
+        break;
+      case 0xFC:
+        ui->MIDI_KeySig->setText("Af Major");
+        break;
+      case 0xFB:
+        ui->MIDI_KeySig->setText("Df Major");
+        break;
+      case 0xFA:
+        ui->MIDI_KeySig->setText("Gf Major");
+        break;
+      case 0xF9:
+        ui->MIDI_KeySig->setText("Cf Major");
+        break;
+      default:
+	ui->MIDI_KeySig->clear();
+	break;
+    } // end switch
+  }   // end Major key
+  }
+  if (!paused) on_Pause_button_toggled(false);
+}	// end on_MIDI_Transpose_valueChanged
+
+void MIDI_PLAY::on_MIDI_Volume_1_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+0;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_2_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+1;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_3_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+2;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_4_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+3;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_5_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+4;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_6_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+5;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_7_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+6;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_8_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+7;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_9_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+8;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_10_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+9;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_11_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+10;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_12_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+11;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_13_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+12;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_14_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+13;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_15_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+14;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Volume_16_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+15;
+  buf[1] = 0x07;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_1_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+0;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_2_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+1;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_3_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+2;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_4_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+3;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_5_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+4;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_6_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+5;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_7_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+6;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_8_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+7;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_9_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+8;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_10_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+9;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_11_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+10;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_12_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+11;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_13_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+12;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_14_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+13;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_15_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+14;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
+void MIDI_PLAY::on_MIDI_Expression_16_valueChanged(int val) {
+  char buf[3];
+  buf[0] = 0xb0+15;
+  buf[1] = 0x0B;	// new Volume
+  buf[2] = val;
+  send_CC(buf,3);
+}
 
 void MIDI_PLAY::tickDisplay() {
     // set timestamp display
@@ -1089,257 +1577,4 @@ void MIDI_PLAY::tickDisplay() {
       event_num++;
     }	// end WHILE all_events
 }   // end tickDisplay
-
-void MIDI_PLAY::startPlayer(int startTick) {
-    if (pid>0) 
-      return;
-    pid=fork();
-    if (!pid) {
-        play_midi(startTick);
-        exit(EXIT_SUCCESS);
-    }   // end pid fork
-}
-
-void MIDI_PLAY::stopPlayer() {
-    if (pid) {
-        kill(pid,SIGKILL);
-        waitpid(pid,NULL,0);
-    }
-    pid = 0;
-    snd_seq_drop_output(seq);
-    snd_seq_drain_output(seq);
-}
-
-void MIDI_PLAY::on_MIDI_Volume_Master_valueChanged(int val) {
-    char buf[8];
-    if (seq && !ui->MIDI_GMGS_button->isChecked()) {
-      connect_port();
-      buf[0] = 0xF0;
-      buf[1] = 0x7F;
-      buf[2] = 0x7F;
-      buf[3] = 0x04;
-      buf[4] = 0x01;
-      buf[5] = 0x00;
-      buf[6] = val;
-      buf[7] = 0xF7;
-      send_SysEx(buf, 8);
-  }
-}
-
-void MIDI_PLAY::on_MIDI_Tempo_Master_valueChanged(int val) {
-  int tempo;
-  bool paused = ui->Pause_button->isChecked();
-  if (seq && !ui->MIDI_GMGS_button->isChecked()) {
-    tempo = 60000000/val;
-    snd_seq_event_t ev;
-    snd_seq_ev_clear(&ev);
-    ev.data.queue.queue = queue;
-    ev.data.queue.param.value = tempo;
-    ev.type = SND_SEQ_EVENT_TEMPO;
-    snd_seq_ev_set_fixed(&ev);
-    snd_seq_ev_set_direct(&ev);
-    if (!paused) on_Pause_button_toggled(true);
-    snd_seq_event_output_direct(seq, &ev);
-    if (!paused) on_Pause_button_toggled(false);
-  }
-}
-
-void MIDI_PLAY::on_MIDI_Exit_button_clicked() {
-    this->close();
-}
-
-void MIDI_PLAY::on_MIDI_GMGS_button_toggled(bool checked) {
-  if (checked) {
-    ui->MIDI_GMGS_button->setText("GM");
-  }
-  else {
-    ui->MIDI_GMGS_button->setText("GS");
-  }
-}
-
-void MIDI_PLAY::on_MIDI_Transpose_valueChanged(signed int val) {
-  // if timer is running, pause playback, change the key, and resume
-  bool paused=ui->Pause_button->isChecked();
-  if (!paused) on_Pause_button_toggled(true);
-  // change the Key Signature if one is displayed
-  if (ui->MIDI_KeySig->text().size()) {
-  ui->MIDI_KeySig->clear();
-  signed int y = (7*val) + (sf>7?sf-256 :sf);
-  while(y>7)
-    y -= 12;
-  while(y<-7)
-    y += 12;
-  y = y<0?0x100+y:y;
-  if (minor_key) {
-    switch(y) {
-      case 0:
-        ui->MIDI_KeySig->setText("a minor");
-        break;
-      case 1:
-        ui->MIDI_KeySig->setText("e minor");
-        break;
-      case 2:
-        ui->MIDI_KeySig->setText("b minor");
-        break;
-      case 3:
-        ui->MIDI_KeySig->setText("f# minor");
-        break;
-      case 4:
-        ui->MIDI_KeySig->setText("c# minor");
-        break;
-      case 5:
-        ui->MIDI_KeySig->setText("g# minor");
-        break;
-      case 6:
-        ui->MIDI_KeySig->setText("d# minor");
-        break;
-      case 7:
-        ui->MIDI_KeySig->setText("a# minor");
-        break;
-      case 0xff:
-        ui->MIDI_KeySig->setText("d minor");
-        break;
-      case 0xfe:
-        ui->MIDI_KeySig->setText("g minor");
-        break;
-      case 0xfd:
-        ui->MIDI_KeySig->setText("c minor");
-        break;
-      case 0xFC:
-        ui->MIDI_KeySig->setText("f minor");
-        break;
-      case 0xFB:
-        ui->MIDI_KeySig->setText("bf minor");
-        break;
-      case 0xFA:
-        ui->MIDI_KeySig->setText("ef minor");
-        break;
-      case 0xF9:
-        ui->MIDI_KeySig->setText("af minor");
-        break;
-      default:
-	ui->MIDI_KeySig->clear();
-	break;
-    }  // end switch
-  }   // end ninor key
-  else {
-    switch(y) {
-      case 0:
-        ui->MIDI_KeySig->setText("C Major");
-        break;
-      case 1:
-        ui->MIDI_KeySig->setText("G Major");
-        break;
-      case 2:
-        ui->MIDI_KeySig->setText("D Major");
-        break;
-      case 3:
-        ui->MIDI_KeySig->setText("A Major");
-        break;
-      case 4:
-        ui->MIDI_KeySig->setText("E Major");
-        break;
-      case 5:
-        ui->MIDI_KeySig->setText("B Major");
-        break;
-      case 6:
-        ui->MIDI_KeySig->setText("F# Major");
-        break;
-      case 7:
-        ui->MIDI_KeySig->setText("C# Major");
-        break;
-      case 0xFF:
-        ui->MIDI_KeySig->setText("F Major");
-        break;
-      case 0xFE:
-        ui->MIDI_KeySig->setText("Bf Major");
-        break;
-      case 0xFD:
-        ui->MIDI_KeySig->setText("Ef Major");
-        break;
-      case 0xFC:
-        ui->MIDI_KeySig->setText("Af Major");
-        break;
-      case 0xFB:
-        ui->MIDI_KeySig->setText("Df Major");
-        break;
-      case 0xFA:
-        ui->MIDI_KeySig->setText("Gf Major");
-        break;
-      case 0xF9:
-        ui->MIDI_KeySig->setText("Cf Major");
-        break;
-      default:
-	ui->MIDI_KeySig->clear();
-	break;
-    } // end switch
-  }   // end Major key
-  }
-  if (!paused) on_Pause_button_toggled(false);
-}	// end on_MIDI_Transpose_valueChanged
-
-void MIDI_PLAY::on_MIDI_Volume_1_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_2_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_3_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_4_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_5_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_6_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_7_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_8_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_9_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_10_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_11_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_12_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_13_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_14_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_15_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Volume_16_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_1_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_2_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_3_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_4_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_5_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_6_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_7_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_8_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_9_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_10_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_11_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_12_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_13_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_14_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_15_valueChanged(int val) {
-}
-void MIDI_PLAY::on_MIDI_Expression_16_valueChanged(int val) {
-}
 
